@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.AI.Navigation;
 using UnityEngine;
 
 public class DungeonGenerator : MonoBehaviour
@@ -8,6 +9,7 @@ public class DungeonGenerator : MonoBehaviour
     public GameObject[] roomPrefabs;
     public int maxRooms = 10;
     public string doorTag = "doorTag";
+    public NavMeshSurface surface;
 
     private List<Transform> openAnchors = new List<Transform>();
     private List<GameObject> spawnedRooms = new List<GameObject>();
@@ -15,6 +17,7 @@ public class DungeonGenerator : MonoBehaviour
     void Start()
     {
         GenerateMap();
+        surface.BuildNavMesh();
     }
 
     public void GenerateMap()

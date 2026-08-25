@@ -7215,6 +7215,7 @@ GameObject:
   - component: {fileID: 7657306424945127763}
   - component: {fileID: 6617003333270342981}
   - component: {fileID: 4887921152023743947}
+  - component: {fileID: 374429786836236689}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -7471,11 +7472,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4122ead66ceb124d8c54b24edde0784, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInteraction
+  ShowTopMostFoldoutHeaderGroup: 1
   interactionDistance: 3
   interactionLayer:
     serializedVersion: 2
     m_Bits: 1280
   interactionPrompt: {fileID: 7964001659438557462}
+--- !u!114 &374429786836236689
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7605459374189235203}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc4f19b8b55c7ba47b57931ed99d344d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PersistentPlayer
+  spawnPointTag: SpawnPoint
 --- !u!1 &7618625913849849782
 GameObject:
   m_ObjectHideFlags: 0

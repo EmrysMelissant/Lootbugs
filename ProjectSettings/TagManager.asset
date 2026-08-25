@@ -8,6 +8,7 @@ TagManager:
   - Item
   - Checkpoint
   - doorTag
+  - SpawnPoint
   layers:
   - Default
   - TransparentFX
