@@ -30,7 +30,7 @@ public class Attack : State
 
     public override void Update()
     {
-        if (currentTarget == null)
+        if (!IsTargetValid(currentTarget))
         {
             nextState = new Idle(npc, agent, animator, null);
             stage = Event.Exit;
@@ -40,7 +40,10 @@ public class Attack : State
         Vector3 direction = currentTarget.position - npc.transform.position;
         float angle = Vector3.Angle(direction, npc.transform.forward);
         direction.y = 0;
-        npc.transform.rotation = Quaternion.Slerp(npc.transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
+        if (direction.sqrMagnitude > 0.001f)
+        {
+            npc.transform.rotation = Quaternion.Slerp(npc.transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
+        }
 
         // Perform attack with cooldown timer
         if (Time.time >= lastAttackTime + attackRate)
@@ -49,17 +52,19 @@ public class Attack : State
             lastAttackTime = Time.time;
         }
 
-        if(!CanAttackPlayer())
+        if (!CanAttackPlayer())
         {
-            nextState = new Idle(npc, agent, animator, currentTarget);
+            nextState = new Idle(npc, agent, animator, null);
             stage = Event.Exit;
         }
     }
 
     private void PerformAttack()
     {
+        if (currentTarget == null) return;
+
         // Deal damage to the player component
-        if (currentTarget.TryGetComponent(out NewClimbing player))
+        if (currentTarget.TryGetComponent(out NewClimbing player) && player.IsAlive)
         {
             player.TakeDamage(attackDamage);
         }

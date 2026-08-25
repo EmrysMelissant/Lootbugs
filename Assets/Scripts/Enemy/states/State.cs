@@ -56,6 +56,15 @@ public class State
         }
         return this;
     }
+    public bool IsTargetValid(Transform target)
+    {
+        if (target == null || !target.gameObject.activeInHierarchy) return false;
+
+        if (target.TryGetComponent(out NewClimbing climbing) && !climbing.IsAlive) return false;
+
+        return true;
+    }
+
     public bool CanSeePlayer(out Transform visiblePlayer)
     {
         visiblePlayer = null;
@@ -64,7 +73,9 @@ public class State
 
         foreach (GameObject p in players)
         {
-            if (p == null) continue;
+            if (p == null || !p.activeInHierarchy) continue;
+
+            if (p.TryGetComponent(out NewClimbing climbing) && !climbing.IsAlive) continue;
 
             Vector3 direction = p.transform.position - npc.transform.position;
             float distance = direction.magnitude;
@@ -79,6 +90,7 @@ public class State
 
         return visiblePlayer != null;
     }
+
     public bool CanSeePlayer()
     {
         return CanSeePlayer(out _);
@@ -86,7 +98,7 @@ public class State
 
     public bool CanAttackPlayer()
     {
-        if (currentTarget == null) return false;
+        if (!IsTargetValid(currentTarget)) return false;
 
         Vector3 direction = currentTarget.position - npc.transform.position;
         return direction.magnitude < attackDistance;

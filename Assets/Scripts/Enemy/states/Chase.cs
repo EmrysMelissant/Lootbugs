@@ -19,9 +19,10 @@ public class Chase : State
 
     public override void Update()
     {
-        // If current target disconnected, died, or went missing
-        if (currentTarget == null)
+        // If current target disconnected, died, disabled, or went missing
+        if (!IsTargetValid(currentTarget))
         {
+            currentTarget = null;
             if (CanSeePlayer(out Transform visiblePlayer))
             {
                 currentTarget = visiblePlayer;

@@ -13,22 +13,26 @@ public class PlayerCam : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        SetCameraActive(IsOwner);
-    }
+        if (!IsOwner)
+        {
+            if (camera != null)
+            {
+                camera.SetActive(false);
+            }
+            if (TryGetComponent(out AudioListener listener))
+            {
+                listener.enabled = false;
+            }
+            else if (camera != null && camera.TryGetComponent(out AudioListener camListener))
+            {
+                camListener.enabled = false;
+            }
+            return;
+        }
 
-    public void SetCameraActive(bool active)
-    {
         if (camera != null)
         {
-            camera.SetActive(active);
-        }
-        if (TryGetComponent(out AudioListener listener))
-        {
-            listener.enabled = active;
-        }
-        else if (camera != null && camera.TryGetComponent(out AudioListener camListener))
-        {
-            camListener.enabled = active;
+            camera.SetActive(true);
         }
     }
 

@@ -62,6 +62,7 @@ public class NewClimbing : NetworkBehaviour
 
     int jumpPhase;
     private bool isAlive = true;
+    public bool IsAlive => isAlive;
     private bool sprinting;
     Rigidbody body, connectedBody, previousConnectedBody;
     Vector3 upAxis, rightAxis, forwardAxis;
@@ -247,22 +248,12 @@ public class NewClimbing : NetworkBehaviour
         {
             body.linearVelocity = Vector3.zero;
         }
-        this.enabled = false;
+
+        // Fully disable the player prefab GameObject
+        gameObject.SetActive(false);
     }
 
-    public void Revive(Vector3 revivePosition)
-    {
-        if (IsServer)
-        {
-            isAlive = true;
-            Health = 20f;
-            stamina = maxStamina / 2f;
-            ReviveClientRpc(revivePosition);
-        }
-    }
-
-    [ClientRpc]
-    public void ReviveClientRpc(Vector3 revivePosition)
+    public void OnRevived(Vector3 revivePosition)
     {
         isAlive = true;
         Health = 20f; // Revive with 20 health
@@ -276,7 +267,6 @@ public class NewClimbing : NetworkBehaviour
         }
         transform.position = revivePosition;
 
-        // Restore player collision/mesh visibility
         this.enabled = true;
     }
 
@@ -304,6 +294,10 @@ public class NewClimbing : NetworkBehaviour
                 if (tether.target.TryGetComponent<Item>(out Item item))
                 {
                     weight += item.NetHeavy.Value;
+                }
+                else if (tether.target.TryGetComponent<DeadPlayer>(out _))
+                {
+                    weight += 2f;
                 }
             }
         }

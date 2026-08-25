@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 public class NetworkTetherSystem : NetworkBehaviour
 {
-    private static Dictionary<ulong, int> GlobalTetherRegistry = new Dictionary<ulong, int>();
+    private static readonly Dictionary<ulong, int> GlobalTetherRegistry = new Dictionary<ulong, int>();
 
     [System.Serializable]
     public class TetherInstance
@@ -18,7 +18,7 @@ public class NetworkTetherSystem : NetworkBehaviour
 
     [Header("Settings")]
     public float maxDistance = 50f;
-    public float minPullDistance = 3f;
+    public float minPullDistance = 1.2f;
     public LayerMask grappleLayer;
     public KeyCode tetherKey = KeyCode.E;
     public Material lineMaterial;
@@ -29,6 +29,18 @@ public class NetworkTetherSystem : NetworkBehaviour
 
     public List<TetherInstance> activeTethers = new List<TetherInstance>();
 
+    private Camera cachedCam;
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        if (IsOwner)
+        {
+            cachedCam = GetComponentInChildren<Camera>();
+            if (cachedCam == null) cachedCam = Camera.main;
+        }
+    }
+
     void Update()
     {
         if (!IsOwner) return;
@@ -37,10 +49,17 @@ public class NetworkTetherSystem : NetworkBehaviour
 
     void HandleTetherInput()
     {
-        RaycastHit hit;
-        if (Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit, maxDistance, grappleLayer))
+        if (cachedCam == null)
         {
-            var networkObj = hit.collider.GetComponent<NetworkObject>();
+            cachedCam = GetComponentInChildren<Camera>();
+            if (cachedCam == null) cachedCam = Camera.main;
+            if (cachedCam == null) return;
+        }
+
+        RaycastHit hit;
+        if (Physics.Raycast(cachedCam.transform.position, cachedCam.transform.forward, out hit, maxDistance, grappleLayer))
+        {
+            var networkObj = hit.collider.GetComponentInParent<NetworkObject>();
             if (networkObj != null)
             {
                 ToggleTetherServerRpc(networkObj.NetworkObjectId, hit.point);
@@ -53,10 +72,8 @@ public class NetworkTetherSystem : NetworkBehaviour
     {
         int clientId = (int)rpcParams.Receive.SenderClientId;
 
-        
         if (GlobalTetherRegistry.ContainsKey(targetId))
         {
-            
             if (GlobalTetherRegistry[targetId] == clientId)
             {
                 GlobalTetherRegistry.Remove(targetId);
@@ -64,13 +81,11 @@ public class NetworkTetherSystem : NetworkBehaviour
             }
             else
             {
-                
                 return; 
             }
         }
         else
         {
-            
             GlobalTetherRegistry.Add(targetId, clientId);
             ToggleTetherClientRpc(targetId, worldHitPoint, true);
         }
@@ -79,15 +94,18 @@ public class NetworkTetherSystem : NetworkBehaviour
     [ClientRpc]
     void ToggleTetherClientRpc(ulong targetId, Vector3 worldHitPoint, bool isCreating)
     {
-        if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetId, out var targetNetworkObj))
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.SpawnManager != null &&
+            NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetId, out var targetNetworkObj))
         {
             GameObject targetGo = targetNetworkObj.gameObject;
             int existingIndex = activeTethers.FindIndex(t => t.targetId == targetId);
 
             if (!isCreating && existingIndex != -1)
             {
-                
-                if (activeTethers[existingIndex].line) Destroy(activeTethers[existingIndex].line.gameObject);
+                if (activeTethers[existingIndex].line != null)
+                {
+                    Destroy(activeTethers[existingIndex].line.gameObject);
+                }
                 activeTethers.RemoveAt(existingIndex);
             }
             else if (isCreating && existingIndex == -1)
@@ -117,14 +135,21 @@ public class NetworkTetherSystem : NetworkBehaviour
     
     void FixedUpdate()
     {
-        if (!IsOwner) return;
-        foreach (var tether in activeTethers)
+        // On Server: Apply physical force authoritatively to pull target Rigidbody towards the tethering player
+        if (IsServer)
         {
-            if (tether.rb == null) continue;
-            Vector3 targetPoint = tether.target.transform.TransformPoint(tether.localOffset);
-            Vector3 direction = transform.position - targetPoint;
-            if (direction.magnitude > minPullDistance)
-                tether.rb.AddForce(direction.normalized * pullForce, ForceMode.Acceleration);
+            for (int i = 0; i < activeTethers.Count; i++)
+            {
+                var tether = activeTethers[i];
+                if (tether == null || tether.target == null || tether.rb == null) continue;
+
+                Vector3 targetPoint = tether.target.transform.TransformPoint(tether.localOffset);
+                Vector3 direction = transform.position - targetPoint;
+                if (direction.magnitude > minPullDistance)
+                {
+                    tether.rb.AddForce(direction.normalized * pullForce, ForceMode.Acceleration);
+                }
+            }
         }
     }
 
@@ -134,12 +159,19 @@ public class NetworkTetherSystem : NetworkBehaviour
         {
             if (activeTethers[i].target == null)
             {
-                if (activeTethers[i].line) Destroy(activeTethers[i].line.gameObject);
+                if (activeTethers[i].line != null)
+                {
+                    Destroy(activeTethers[i].line.gameObject);
+                }
                 activeTethers.RemoveAt(i);
                 continue;
             }
-            activeTethers[i].line.SetPosition(0, transform.position);
-            activeTethers[i].line.SetPosition(1, activeTethers[i].target.transform.TransformPoint(activeTethers[i].localOffset));
+
+            if (activeTethers[i].line != null)
+            {
+                activeTethers[i].line.SetPosition(0, transform.position);
+                activeTethers[i].line.SetPosition(1, activeTethers[i].target.transform.TransformPoint(activeTethers[i].localOffset));
+            }
         }
     }
 }
