@@ -34,6 +34,7 @@ public class Climbing : NetworkBehaviour
 
     private void Update()
     {
+        if (!IsOwner) return;
         FaceWall();
     }
     private void OnCollisionStay(Collision collision)
