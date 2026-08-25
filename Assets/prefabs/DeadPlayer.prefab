@@ -248,8 +248,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DeadPlayer
   ShowTopMostFoldoutHeaderGroup: 1
-  interactText: E to Resurrect for 20hp
-  deathCamera: {fileID: 0}
+  interactText: F to Resurrect for 20hp
 --- !u!135 &2182157322492635457
 SphereCollider:
   m_ObjectHideFlags: 0

@@ -7,8 +7,11 @@ public class Chase : State
         : base(_npc, _agent, _animator, _target)
     {
         name = STATE.Chase;
-        agent.speed = 4.0f;
-        agent.isStopped = false;
+        if (agent != null)
+        {
+            agent.speed = ai != null ? ai.ChaseSpeed : 4.0f;
+            agent.isStopped = false;
+        }
     }
 
     public override void Enter()

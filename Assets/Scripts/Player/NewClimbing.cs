@@ -168,32 +168,32 @@ public class NewClimbing : NetworkBehaviour
         HandleDeathServer();
     }
 
-    public void TakeDamage(float damage)
+    public void TakeDamage(float damage, Vector3 knockbackForce = default)
     {
-        if (damage <= 0f) return;
+        if (damage <= 0f && knockbackForce == Vector3.zero) return;
 
         if (IsServer)
         {
-            ApplyDamage(damage);
+            ApplyDamage(damage, knockbackForce);
         }
         else
         {
-            TakeDamageServerRpc(damage);
+            TakeDamageServerRpc(damage, knockbackForce);
         }
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void TakeDamageServerRpc(float damage)
+    private void TakeDamageServerRpc(float damage, Vector3 knockbackForce)
     {
-        ApplyDamage(damage);
+        ApplyDamage(damage, knockbackForce);
     }
 
-    private void ApplyDamage(float damage)
+    private void ApplyDamage(float damage, Vector3 knockbackForce)
     {
         if (!IsServer || !isAlive) return;
 
         Health = Mathf.Max(0f, Health - damage);
-        TakeDamageClientRpc(Health);
+        TakeDamageClientRpc(Health, knockbackForce);
 
         if (Health <= 0f)
         {
@@ -202,9 +202,23 @@ public class NewClimbing : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void TakeDamageClientRpc(float newHealth)
+    private void TakeDamageClientRpc(float newHealth, Vector3 knockbackForce)
     {
         Health = newHealth;
+
+        if (IsOwner && isAlive && knockbackForce.sqrMagnitude > 0.001f)
+        {
+            ApplyKnockback(knockbackForce);
+        }
+    }
+
+    public void ApplyKnockback(Vector3 force)
+    {
+        velocity += force;
+        if (body != null)
+        {
+            body.linearVelocity = velocity;
+        }
     }
 
     private void HandleDeathServer()

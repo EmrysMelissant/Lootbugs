@@ -45,6 +45,8 @@ public class Attack : State
             npc.transform.rotation = Quaternion.Slerp(npc.transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
         }
 
+        float attackRate = ai != null ? ai.AttackRate : 1.0f;
+
         // Perform attack with cooldown timer
         if (Time.time >= lastAttackTime + attackRate)
         {
@@ -63,10 +65,20 @@ public class Attack : State
     {
         if (currentTarget == null) return;
 
-        // Deal damage to the player component
+        // Deal damage and knockback to the player component
         if (currentTarget.TryGetComponent(out NewClimbing player) && player.IsAlive)
         {
-            player.TakeDamage(attackDamage);
+            float damage = ai != null ? ai.AttackDamage : 15f;
+            float knockback = ai != null ? ai.KnockbackForce : 12f;
+
+            // Direction from enemy to player with a slight upward lift
+            Vector3 knockbackDir = (currentTarget.position - npc.transform.position).normalized;
+            knockbackDir.y = 0.35f;
+            knockbackDir.Normalize();
+
+            Vector3 knockbackVector = knockbackDir * knockback;
+
+            player.TakeDamage(damage, knockbackVector);
         }
     }
 
