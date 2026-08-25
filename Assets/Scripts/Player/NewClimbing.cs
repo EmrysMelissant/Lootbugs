@@ -8,8 +8,14 @@ public class NewClimbing : NetworkBehaviour
     float minGroundDotProduct;
     float minClimbDotProduct;
     public NetworkTetherSystem NetworkTetherSystem;
+
+    [Header("Death & Revive Settings")]
+    [Tooltip("Prefab spawned on death. Must have NetworkObject and DeadPlayer scripts attached.")]
+    public GameObject deadPlayerPrefab;
+
     [Header("Player Stats")]
     public float MaxHealth = 100f;
+    public float Health = 100f;
     public float stamina = 100f;
     public float maxStamina = 100f;
     public float staminaRegenRate = 5f;
@@ -20,13 +26,13 @@ public class NewClimbing : NetworkBehaviour
     [Header("Movement Settings")]
     [SerializeField, Range(0f, 100f)]
     float maxAcceleration = 10f, maxAirAcceleration = 1f, maxClimbAcceleration = 20f;
-    
+
     [SerializeField, Range(0f, 100f)]
     float maxSpeed = 10f, maxClimbSpeed = 4f;
     public float sprintSpeed = 15f;
     public float walkSpeed = 10f;
     public float minMoveSpeed = 1f;
-  
+
     [SerializeField] float gravityMultiplier = 2.5f;
 
     [Header("Climbing & Slope")]
@@ -48,15 +54,14 @@ public class NewClimbing : NetworkBehaviour
     float probeDistance = 1f;
     [SerializeField]
     LayerMask probeMask = -1;
-    [Tooltip("Only objects on these layers can be climbed.")]
     [SerializeField]
     LayerMask climbMask = -1;
 
-    [Tooltip("Assign the Main Camera or the Camera Pivot here.")]
     [SerializeField]
     Transform playerInputSpace = default;
 
     int jumpPhase;
+    private bool isAlive = true;
     private bool sprinting;
     Rigidbody body, connectedBody, previousConnectedBody;
     Vector3 upAxis, rightAxis, forwardAxis;
@@ -89,11 +94,20 @@ public class NewClimbing : NetworkBehaviour
         maxSpeed = walkSpeed;
         maxAcceleration = walkSpeed;
         stamina = maxStamina;
+        Health = MaxHealth;
     }
 
     void Update()
     {
         if (!IsOwner) return;
+
+        if (Health <= 0 && isAlive)
+        {
+            Die();
+            return;
+        }
+
+        if (!isAlive) return;
 
         playerInput.x = Input.GetAxisRaw("Horizontal");
         playerInput.y = Input.GetAxisRaw("Vertical");
@@ -109,7 +123,7 @@ public class NewClimbing : NetworkBehaviour
             rightAxis = ProjectDirectionOnPlane(Vector3.right, upAxis);
             forwardAxis = ProjectDirectionOnPlane(Vector3.forward, upAxis);
         }
-        
+
         if (Input.GetButtonDown("Jump"))
         {
             desiredJump = true;
@@ -135,6 +149,138 @@ public class NewClimbing : NetworkBehaviour
         UpdateSpeed();
     }
 
+    public void Die()
+    {
+        if (IsServer)
+        {
+            HandleDeathServer();
+        }
+        else
+        {
+            DieServerRpc();
+        }
+    }
+
+    [ServerRpc]
+    private void DieServerRpc()
+    {
+        HandleDeathServer();
+    }
+
+    public void TakeDamage(float damage)
+    {
+        if (damage <= 0f) return;
+
+        if (IsServer)
+        {
+            ApplyDamage(damage);
+        }
+        else
+        {
+            TakeDamageServerRpc(damage);
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void TakeDamageServerRpc(float damage)
+    {
+        ApplyDamage(damage);
+    }
+
+    private void ApplyDamage(float damage)
+    {
+        if (!IsServer || !isAlive) return;
+
+        Health = Mathf.Max(0f, Health - damage);
+        TakeDamageClientRpc(Health);
+
+        if (Health <= 0f)
+        {
+            HandleDeathServer();
+        }
+    }
+
+    [ClientRpc]
+    private void TakeDamageClientRpc(float newHealth)
+    {
+        Health = newHealth;
+    }
+
+    private void HandleDeathServer()
+    {
+        if (!IsServer || !isAlive) return;
+
+        isAlive = false;
+        Health = 0f;
+
+        Vector3 spawnPos = transform.position + Vector3.up * 0.5f;
+
+        if (deadPlayerPrefab != null)
+        {
+            GameObject corpseObj = Instantiate(deadPlayerPrefab, spawnPos, Quaternion.identity);
+
+            if (corpseObj.TryGetComponent(out NetworkObject netObj))
+            {
+                netObj.Spawn();
+            }
+
+            if (corpseObj.TryGetComponent(out DeadPlayer deadComp))
+            {
+                deadComp.Initialize(OwnerClientId);
+            }
+        }
+        else
+        {
+            Debug.LogError("deadPlayerPrefab is not assigned on NewClimbing!");
+        }
+
+        DeathClientRpc();
+    }
+
+    [ClientRpc]
+    private void DeathClientRpc()
+    {
+        isAlive = false;
+        Health = 0f;
+
+        if (body != null)
+        {
+            body.linearVelocity = Vector3.zero;
+        }
+        this.enabled = false;
+    }
+
+    public void Revive(Vector3 revivePosition)
+    {
+        if (IsServer)
+        {
+            isAlive = true;
+            Health = 20f;
+            stamina = maxStamina / 2f;
+            ReviveClientRpc(revivePosition);
+        }
+    }
+
+    [ClientRpc]
+    public void ReviveClientRpc(Vector3 revivePosition)
+    {
+        isAlive = true;
+        Health = 20f; // Revive with 20 health
+        stamina = maxStamina;
+
+        // Teleport to corpse position
+        if (body != null)
+        {
+            body.position = revivePosition;
+            body.linearVelocity = Vector3.zero;
+        }
+        transform.position = revivePosition;
+
+        // Restore player collision/mesh visibility
+        this.enabled = true;
+    }
+
+
     void UpdateSpeed()
     {
         float targetBaseSpeed = sprinting ? sprintSpeed : walkSpeed;
@@ -144,6 +290,7 @@ public class NewClimbing : NetworkBehaviour
         maxSpeed = effectiveSpeed;
         maxAcceleration = effectiveSpeed;
     }
+
     float GetTotalTetherWeight()
     {
         if (NetworkTetherSystem == null) return 0f;
@@ -165,7 +312,8 @@ public class NewClimbing : NetworkBehaviour
 
     void FixedUpdate()
     {
-        if (!IsOwner) return;
+        if (!IsOwner || !isAlive) return;
+
         upAxis = -Physics.gravity.normalized;
         UpdateState();
         AdjustVelocity();

@@ -1,25 +1,17 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Unity.Netcode;
 
-public class PersistentPlayer : MonoBehaviour
+public class PersistentPlayer : NetworkBehaviour
 {
-    private static PersistentPlayer instance;
-
     [Header("Spawn Settings")]
     [Tooltip("The tag assigned to the SpawnPoint GameObject in each scene.")]
     [SerializeField] private string spawnPointTag = "SpawnPoint";
 
-    private void Awake()
+    public override void OnNetworkSpawn()
     {
-        // Singleton pattern: ensure only one Player survives scene transitions
-        if (instance != null && instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        instance = this;
-        DontDestroyOnLoad(gameObject);
+        base.OnNetworkSpawn();
+        TeleportToSpawnPoint();
     }
 
     private void OnEnable()
@@ -39,6 +31,9 @@ public class PersistentPlayer : MonoBehaviour
 
     private void TeleportToSpawnPoint()
     {
+        // Only teleport the local player owner
+        if (!IsOwner) return;
+
         GameObject spawnPointObj = GameObject.FindWithTag(spawnPointTag);
 
         if (spawnPointObj != null)

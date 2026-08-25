@@ -13,13 +13,22 @@ public class PlayerCam : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        if (!IsOwner)
+        SetCameraActive(IsOwner);
+    }
+
+    public void SetCameraActive(bool active)
+    {
+        if (camera != null)
         {
-            return;
+            camera.SetActive(active);
         }
-        if(IsOwner)
+        if (TryGetComponent(out AudioListener listener))
         {
-            camera.SetActive(true);
+            listener.enabled = active;
+        }
+        else if (camera != null && camera.TryGetComponent(out AudioListener camListener))
+        {
+            camListener.enabled = active;
         }
     }
 
@@ -42,7 +51,13 @@ public class PlayerCam : NetworkBehaviour
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -80f, 80f);
 
-        camera.transform.localRotation = Quaternion.Euler(xRotation, yRotation, 0);
-        orientation.localRotation = Quaternion.Euler(0, yRotation, 0);
+        if (camera != null)
+        {
+            camera.transform.localRotation = Quaternion.Euler(xRotation, yRotation, 0);
+        }
+        if (orientation != null)
+        {
+            orientation.localRotation = Quaternion.Euler(0, yRotation, 0);
+        }
     }
 }

@@ -5,6 +5,7 @@ public class MoveCamera : NetworkBehaviour
     public Transform cameraPos;
     void Update()
     {
+        if (!IsOwner || cameraPos == null) return;
         transform.position = cameraPos.position;
         transform.rotation = cameraPos.rotation;
     }

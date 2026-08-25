@@ -13,9 +13,10 @@ public class Upgrade : MonoBehaviour, IInteractable
         Stamina,
         StaminaRegen,
         Strength,
-        Gains
+        Gains,
+        Heal
     }
-    
+
     public void Interact(GameObject interactor)
     {
         if (interactor.TryGetComponent(out NewClimbing player))
@@ -53,6 +54,13 @@ public class Upgrade : MonoBehaviour, IInteractable
                 break;
             case UpgradeType.Gains:
                 player.gainMultiplier += 0.1f;
+                break;
+            case UpgradeType.Heal:
+                if (player.Health < player.MaxHealth)
+                {
+                    player.Health += 20f;
+                }
+
                 break;
         }
         price += price * 0.2f;
