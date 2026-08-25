@@ -67,7 +67,8 @@ public class State
     {
         if (target == null || !target.gameObject.activeInHierarchy) return false;
 
-        if (target.TryGetComponent(out NewClimbing climbing) && !climbing.IsAlive) return false;
+        NewClimbing climbing = target.GetComponentInParent<NewClimbing>();
+        if (climbing == null || !climbing.IsAlive || !climbing.gameObject.activeInHierarchy) return false;
 
         return true;
     }
@@ -75,26 +76,25 @@ public class State
     public bool CanSeePlayer(out Transform visiblePlayer)
     {
         visiblePlayer = null;
-        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+        NewClimbing[] allPlayers = Object.FindObjectsByType<NewClimbing>(FindObjectsSortMode.None);
 
         float maxVisionDist = ai != null ? ai.VisionDistance : visDistance;
         float maxVisionAngle = ai != null ? ai.VisionAngle : visAngle;
         float closestDistance = maxVisionDist;
 
-        foreach (GameObject p in players)
+        for (int i = 0; i < allPlayers.Length; i++)
         {
-            if (p == null || !p.activeInHierarchy) continue;
+            NewClimbing player = allPlayers[i];
+            if (player == null || !player.gameObject.activeInHierarchy || !player.IsAlive) continue;
 
-            if (p.TryGetComponent(out NewClimbing climbing) && !climbing.IsAlive) continue;
-
-            Vector3 direction = p.transform.position - npc.transform.position;
+            Vector3 direction = player.transform.position - npc.transform.position;
             float distance = direction.magnitude;
             float angle = Vector3.Angle(direction, npc.transform.forward);
 
             if (distance < closestDistance && angle < maxVisionAngle)
             {
                 closestDistance = distance;
-                visiblePlayer = p.transform;
+                visiblePlayer = player.transform;
             }
         }
 
@@ -112,6 +112,6 @@ public class State
 
         float maxAttackDist = ai != null ? ai.AttackRange : attackDistance;
         Vector3 direction = currentTarget.position - npc.transform.position;
-        return direction.magnitude < maxAttackDist;
+        return direction.magnitude <= maxAttackDist;
     }
 }

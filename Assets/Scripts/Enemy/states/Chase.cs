@@ -39,24 +39,33 @@ public class Chase : State
         }
 
         // Drive agent toward the current target
-        agent.SetDestination(currentTarget.position);
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.SetDestination(currentTarget.position);
+        }
 
-        // Check state transitions
+        // Check state transitions: Attack if in range
         if (CanAttackPlayer())
         {
             nextState = new Attack(npc, agent, animator, currentTarget);
             stage = Event.Exit;
+            return;
         }
-        else if (CanSeePlayer(out Transform visiblePlayer))
+
+        // Check if player escaped beyond max chase distance
+        float maxChaseDistance = (ai != null ? ai.VisionDistance : visDistance) * 1.5f;
+        float distanceToTarget = Vector3.Distance(npc.transform.position, currentTarget.position);
+
+        if (distanceToTarget > maxChaseDistance)
         {
-            // Dynamically retarget if a closer player comes into vision
-            currentTarget = visiblePlayer;
-        }
-        else
-        {
-            // Lost line of sight on all players
+            // Lost player, return to patrol
             nextState = new Patrol(npc, agent, animator, null);
             stage = Event.Exit;
+        }
+        else if (CanSeePlayer(out Transform closerPlayer) && closerPlayer != currentTarget)
+        {
+            // Dynamically retarget if a closer player comes into vision
+            currentTarget = closerPlayer;
         }
     }
 }
