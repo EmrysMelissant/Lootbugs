@@ -25,6 +25,7 @@ public class PlayerCam : NetworkBehaviour
 
     void Start()
     {
+        if (!IsOwner) return;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
