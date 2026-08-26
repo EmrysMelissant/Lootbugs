@@ -65,9 +65,14 @@ public class DungeonGenerator : MonoBehaviour
         Transform newRoomAnchor = newAnchors[Random.Range(0, newAnchors.Count)];
 
         // Calculate required rotation: turn incoming room so anchor's forward vector faces opposite target anchor
-        Quaternion targetRotation = Quaternion.LookRotation(-targetAnchor.forward, Vector3.up);
-        Quaternion rotationOffset = targetRotation * Quaternion.Inverse(newRoomAnchor.localRotation);
-        newRoom.transform.rotation = rotationOffset;
+        Vector3 lookDir = -targetAnchor.forward;
+        if (lookDir.sqrMagnitude > 0.0001f)
+        {
+            Vector3 upDir = Mathf.Abs(Vector3.Dot(lookDir.normalized, Vector3.up)) > 0.99f ? Vector3.forward : Vector3.up;
+            Quaternion targetRotation = Quaternion.LookRotation(lookDir, upDir);
+            Quaternion rotationOffset = targetRotation * Quaternion.Inverse(newRoomAnchor.localRotation);
+            newRoom.transform.rotation = rotationOffset;
+        }
 
         // Align position: move new room so the chosen anchor overlaps the target anchor exactly
         Vector3 positionOffset = targetAnchor.position - newRoomAnchor.position;

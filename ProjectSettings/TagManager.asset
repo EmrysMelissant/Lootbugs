@@ -9,6 +9,7 @@ TagManager:
   - Checkpoint
   - doorTag
   - SpawnPoint
+  - RespawnPoint
   layers:
   - Default
   - TransparentFX

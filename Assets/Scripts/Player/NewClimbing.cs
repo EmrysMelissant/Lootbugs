@@ -63,6 +63,25 @@ public class NewClimbing : NetworkBehaviour
     int jumpPhase;
     private bool isAlive = true;
     public bool IsAlive => isAlive;
+
+    [Header("Gravity Control")]
+    [SerializeField] private bool gravityEnabled = true;
+    public bool GravityEnabled => gravityEnabled;
+
+    public void SetGravityEnabled(bool enabled)
+    {
+        gravityEnabled = enabled;
+        if (!enabled)
+        {
+            velocity = Vector3.zero;
+            if (body != null)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
+        }
+    }
+
     private bool sprinting;
     Rigidbody body, connectedBody, previousConnectedBody;
     Vector3 upAxis, rightAxis, forwardAxis;
@@ -108,7 +127,7 @@ public class NewClimbing : NetworkBehaviour
             return;
         }
 
-        if (!isAlive) return;
+        if (!isAlive || !gravityEnabled) return;
 
         playerInput.x = Input.GetAxisRaw("Horizontal");
         playerInput.y = Input.GetAxisRaw("Vertical");
@@ -320,7 +339,7 @@ public class NewClimbing : NetworkBehaviour
 
     void FixedUpdate()
     {
-        if (!IsOwner || !isAlive) return;
+        if (!IsOwner || !isAlive || !gravityEnabled) return;
 
         upAxis = -Physics.gravity.normalized;
         UpdateState();
