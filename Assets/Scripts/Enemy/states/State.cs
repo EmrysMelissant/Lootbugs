@@ -27,6 +27,7 @@ public class State
     protected Transform currentTarget; 
     protected NavMeshAgent agent;
     protected State nextState;
+    protected AI ai;
 
     protected float visDistance = 10.0f;
     protected float visAngle = 30.0f;
@@ -39,6 +40,11 @@ public class State
         animator = _animator;
         currentTarget = _target;
         stage = Event.Enter;
+
+        if (npc != null)
+        {
+            ai = npc.GetComponent<AI>();
+        }
     }
 
     public virtual void Enter() { stage = Event.Update; }
@@ -56,11 +62,13 @@ public class State
         }
         return this;
     }
+
     public bool IsTargetValid(Transform target)
     {
         if (target == null || !target.gameObject.activeInHierarchy) return false;
 
-        if (target.TryGetComponent(out NewClimbing climbing) && !climbing.IsAlive) return false;
+        NewClimbing climbing = target.GetComponentInParent<NewClimbing>();
+        if (climbing == null || !climbing.IsAlive || !climbing.gameObject.activeInHierarchy) return false;
 
         return true;
     }
@@ -68,23 +76,25 @@ public class State
     public bool CanSeePlayer(out Transform visiblePlayer)
     {
         visiblePlayer = null;
-        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
-        float closestDistance = visDistance;
+        NewClimbing[] allPlayers = Object.FindObjectsByType<NewClimbing>(FindObjectsSortMode.None);
 
-        foreach (GameObject p in players)
+        float maxVisionDist = ai != null ? ai.VisionDistance : visDistance;
+        float maxVisionAngle = ai != null ? ai.VisionAngle : visAngle;
+        float closestDistance = maxVisionDist;
+
+        for (int i = 0; i < allPlayers.Length; i++)
         {
-            if (p == null || !p.activeInHierarchy) continue;
+            NewClimbing player = allPlayers[i];
+            if (player == null || !player.gameObject.activeInHierarchy || !player.IsAlive) continue;
 
-            if (p.TryGetComponent(out NewClimbing climbing) && !climbing.IsAlive) continue;
-
-            Vector3 direction = p.transform.position - npc.transform.position;
+            Vector3 direction = player.transform.position - npc.transform.position;
             float distance = direction.magnitude;
             float angle = Vector3.Angle(direction, npc.transform.forward);
 
-            if (distance < closestDistance && angle < visAngle)
+            if (distance < closestDistance && angle < maxVisionAngle)
             {
                 closestDistance = distance;
-                visiblePlayer = p.transform;
+                visiblePlayer = player.transform;
             }
         }
 
@@ -100,7 +110,8 @@ public class State
     {
         if (!IsTargetValid(currentTarget)) return false;
 
+        float maxAttackDist = ai != null ? ai.AttackRange : attackDistance;
         Vector3 direction = currentTarget.position - npc.transform.position;
-        return direction.magnitude < attackDistance;
+        return direction.magnitude <= maxAttackDist;
     }
 }

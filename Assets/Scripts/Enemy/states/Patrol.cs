@@ -9,8 +9,11 @@ public class Patrol : State
         : base(_npc, _agent, _animator, _target)
     {
         name = STATE.Patrol;
-        agent.speed = 2.0f;
-        agent.isStopped = false;
+        if (agent != null)
+        {
+            agent.speed = ai != null ? ai.PatrolSpeed : 2.0f;
+            agent.isStopped = false;
+        }
     }
 
     public override void Enter()

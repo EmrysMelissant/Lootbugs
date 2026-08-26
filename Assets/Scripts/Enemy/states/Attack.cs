@@ -1,31 +1,24 @@
 using UnityEngine;
-using System.Collections.Generic;
-using System.Collections;
 using UnityEngine.AI;
 
 public class Attack : State
 {
-    float rotationSpeed = 2.0f;
-    AudioSource shoot;
+    private float rotationSpeed = 5.0f;
+    private float lastAttackTime = -999f;
 
-    // Attack parameters
-    private float attackDamage = 15f;
-    private float attackRate = 1.0f; // Seconds between attacks
-    private float lastAttackTime;
-
-    public Attack(GameObject _npc, NavMeshAgent _agent, Animator _animator, Transform _player) : base(_npc, _agent, _animator, _player)
+    public Attack(GameObject _npc, NavMeshAgent _agent, Animator _animator, Transform _player) 
+        : base(_npc, _agent, _animator, _player)
     {
         name = STATE.Attack;
-        //shoot = npc.GetComponent<AudioSource>();
     }
 
     public override void Enter()
     {
-        //animator.SetTrigger("Attack");
         base.Enter();
-        agent.isStopped = true;
-        //shoot.Play();
-        lastAttackTime = Time.time;
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+        }
     }
 
     public override void Update()
@@ -38,12 +31,13 @@ public class Attack : State
         }
 
         Vector3 direction = currentTarget.position - npc.transform.position;
-        float angle = Vector3.Angle(direction, npc.transform.forward);
         direction.y = 0;
         if (direction.sqrMagnitude > 0.001f)
         {
             npc.transform.rotation = Quaternion.Slerp(npc.transform.rotation, Quaternion.LookRotation(direction), rotationSpeed * Time.deltaTime);
         }
+
+        float attackRate = ai != null ? ai.AttackRate : 1.0f;
 
         // Perform attack with cooldown timer
         if (Time.time >= lastAttackTime + attackRate)
@@ -52,9 +46,10 @@ public class Attack : State
             lastAttackTime = Time.time;
         }
 
+        // If player stepped out of attack range, transition back to Chase immediately
         if (!CanAttackPlayer())
         {
-            nextState = new Idle(npc, agent, animator, null);
+            nextState = new Chase(npc, agent, animator, currentTarget);
             stage = Event.Exit;
         }
     }
@@ -63,16 +58,30 @@ public class Attack : State
     {
         if (currentTarget == null) return;
 
-        // Deal damage to the player component
-        if (currentTarget.TryGetComponent(out NewClimbing player) && player.IsAlive)
+        // Deal damage and knockback to the player component
+        NewClimbing player = currentTarget.GetComponentInParent<NewClimbing>();
+        if (player != null && player.IsAlive)
         {
-            player.TakeDamage(attackDamage);
+            float damage = ai != null ? ai.AttackDamage : 15f;
+            float knockback = ai != null ? ai.KnockbackForce : 12f;
+
+            // Direction from enemy to player with a slight upward lift
+            Vector3 knockbackDir = (currentTarget.position - npc.transform.position).normalized;
+            knockbackDir.y = 0.35f;
+            knockbackDir.Normalize();
+
+            Vector3 knockbackVector = knockbackDir * knockback;
+
+            player.TakeDamage(damage, knockbackVector);
         }
     }
 
     public override void Exit()
     {
-        //animator.ResetTrigger("Attack");
         base.Exit();
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+        }
     }
 }

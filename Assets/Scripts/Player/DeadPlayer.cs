@@ -6,10 +6,6 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
     [SerializeField] private string interactText = "F to Resurrect";
     public string InteractionText => interactText;
 
-    [Header("Death Camera Settings")]
-    [Tooltip("Camera activated for the dead player.")]
-    [SerializeField] private GameObject deathCamera;
-
     // Synchronize the target player's ClientId across network
     private readonly NetworkVariable<ulong> targetOwnerClientId = new NetworkVariable<ulong>(
         ulong.MaxValue,
@@ -17,79 +13,11 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
         NetworkVariableWritePermission.Server
     );
 
-    private void Awake()
-    {
-        if (deathCamera == null)
-        {
-            Transform camTrans = transform.Find("Camera");
-            if (camTrans != null)
-            {
-                deathCamera = camTrans.gameObject;
-            }
-            else
-            {
-                Camera cam = GetComponentInChildren<Camera>(true);
-                if (cam != null)
-                {
-                    deathCamera = cam.gameObject;
-                }
-            }
-        }
-    }
-
-    public override void OnNetworkSpawn()
-    {
-        base.OnNetworkSpawn();
-        targetOwnerClientId.OnValueChanged += OnTargetOwnerChanged;
-        UpdateDeathCamera();
-    }
-
-    public override void OnNetworkDespawn()
-    {
-        targetOwnerClientId.OnValueChanged -= OnTargetOwnerChanged;
-
-        if (deathCamera != null)
-        {
-            deathCamera.SetActive(false);
-        }
-
-        base.OnNetworkDespawn();
-    }
-
-    private void OnTargetOwnerChanged(ulong previousValue, ulong newValue)
-    {
-        UpdateDeathCamera();
-    }
-
     public void Initialize(ulong clientId)
     {
         if (IsServer)
         {
             targetOwnerClientId.Value = clientId;
-            UpdateDeathCamera();
-        }
-    }
-
-    private void UpdateDeathCamera()
-    {
-        if (NetworkManager.Singleton == null) return;
-
-        bool isLocalDeadPlayer = (NetworkManager.Singleton.LocalClientId == targetOwnerClientId.Value);
-
-        if (deathCamera != null)
-        {
-            deathCamera.SetActive(isLocalDeadPlayer);
-
-            if (deathCamera.TryGetComponent(out AudioListener listener))
-            {
-                listener.enabled = isLocalDeadPlayer;
-            }
-        }
-
-        // Guarantee local player GameObject is fully disabled when dead
-        if (isLocalDeadPlayer && NetworkManager.Singleton.LocalClient != null && NetworkManager.Singleton.LocalClient.PlayerObject != null)
-        {
-            NetworkManager.Singleton.LocalClient.PlayerObject.gameObject.SetActive(false);
         }
     }
 
@@ -144,11 +72,6 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
     [ClientRpc]
     private void ReviveClientRpc(ulong targetClientId, ulong playerNetObjectId, Vector3 revivePosition)
     {
-        if (deathCamera != null)
-        {
-            deathCamera.SetActive(false);
-        }
-
         NetworkObject playerNetObj = null;
 
         if (NetworkManager.Singleton != null)
