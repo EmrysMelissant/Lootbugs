@@ -20,7 +20,7 @@ public class NetworkTetherSystem : NetworkBehaviour
     public float maxDistance = 50f;
     public float minPullDistance = 1.2f;
     public LayerMask grappleLayer;
-    public KeyCode tetherKey = KeyCode.E;
+    public KeyCode tetherKey = KeyCode.Mouse0;
     public Material lineMaterial;
     public float ropeWidth = 0.05f;
 

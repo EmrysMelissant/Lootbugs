@@ -7,6 +7,7 @@ public class PlayerInteraction : NetworkBehaviour
     [SerializeField] private float interactionDistance = 3f;
     [SerializeField] private LayerMask interactionLayer;
     [SerializeField] private TMP_Text interactionPrompt;
+    public KeyCode interactKey = KeyCode.E;
     private Camera playerCamera;
 
     private void Start()
@@ -46,7 +47,7 @@ public class PlayerInteraction : NetworkBehaviour
                     interactionPrompt.text = interactable.InteractionText;
                 }
 
-                if (Input.GetKeyDown(KeyCode.F))
+                if (Input.GetKeyDown(interactKey))
                 {
                     interactable.Interact(gameObject);
                 }
