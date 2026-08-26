@@ -55,51 +55,63 @@ public class PlayerMovement : NetworkBehaviour
     }
     void MyInput()
     {
-        //move
-        horizontalInput = Input.GetAxisRaw("Horizontal");
-        verticalInput = Input.GetAxisRaw("Vertical");
+        // move
+        if (MobileMotionManager.Instance != null)
+        {
+            Vector2 move = MobileMotionManager.Instance.GetMoveInput();
+            horizontalInput = move.x;
+            verticalInput = move.y;
+        }
+        else
+        {
+            horizontalInput = Input.GetAxisRaw("Horizontal");
+            verticalInput = Input.GetAxisRaw("Vertical");
+        }
 
-        //jump
-        if (Input.GetKey(jumpKey) && readyToJump && grounded)
+        // jump
+        bool jumpPressed = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsJumpTriggered() : Input.GetKey(jumpKey);
+        if (jumpPressed && readyToJump && grounded)
         {
             readyToJump = false;
             Jump();
             Invoke(nameof(ResetJump), jumpCooldown);
         }
 
-        //crouch
-        if (Input.GetKeyDown(crouchKey))
+        // crouch
+        bool crouchActive = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsCrouchActive() : Input.GetKey(crouchKey);
+        if (crouchActive && Mathf.Abs(transform.localScale.y - crouchYScale) > 0.01f)
         {
             transform.localScale = new Vector3(transform.localScale.x, crouchYScale, transform.localScale.z);
             rb.AddForce(-transform.up * 5f, ForceMode.Impulse);
         }
-        if (Input.GetKeyUp(crouchKey))
+        else if (!crouchActive && Mathf.Abs(transform.localScale.y - startYScale) > 0.01f)
         {
             transform.localScale = new Vector3(transform.localScale.x, startYScale, transform.localScale.z);
         }
-
     }
     private void StateHandler()
     {
-        //mode crouching
-        if (Input.GetKey(crouchKey))
+        bool crouchActive = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsCrouchActive() : Input.GetKey(crouchKey);
+        bool sprintActive = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsSprintActive() : Input.GetKey(sprintKey);
+
+        // mode crouching
+        if (crouchActive)
         {
             state = MovementState.crouching;
             moveSpeed = crouchSpeed;
         }
-
-        //mode sprinting
-        else if (grounded && Input.GetKey(sprintKey))
+        // mode sprinting
+        else if (grounded && sprintActive)
         {
             state = MovementState.sprinting;
         }
-        //mode walking
+        // mode walking
         else if (grounded)
         {
             state = MovementState.walking;
             moveSpeed = walkSpeed;
         }
-        //mode air
+        // mode air
         else
         {
             state = MovementState.air;

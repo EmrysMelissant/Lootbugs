@@ -46,7 +46,8 @@ public class PlayerInteraction : NetworkBehaviour
                     interactionPrompt.text = interactable.InteractionText;
                 }
 
-                if (Input.GetKeyDown(KeyCode.F))
+                bool interactPressed = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsInteractTriggered(KeyCode.F) : Input.GetKeyDown(KeyCode.F);
+                if (interactPressed)
                 {
                     interactable.Interact(gameObject);
                 }

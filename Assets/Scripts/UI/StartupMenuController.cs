@@ -112,8 +112,9 @@ public class StartupMenuController : MonoBehaviour
         // Netcode Callbacks
         RegisterNetworkCallbacks();
 
-        // Ensure Join Game UI is created and wired
+        // Ensure Join Game & Controls UI are created and wired
         EnsureJoinGameUI();
+        EnsureControlsUI();
 
         // Initialize state
         ShowMainMenu();
@@ -154,7 +155,8 @@ public class StartupMenuController : MonoBehaviour
     {
         if (isInGame)
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            bool pausePressed = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsPauseTriggered() : Input.GetKeyDown(KeyCode.Escape);
+            if (pausePressed)
             {
                 if (isPaused)
                 {
@@ -194,6 +196,8 @@ public class StartupMenuController : MonoBehaviour
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (inGameHudPanel != null) inGameHudPanel.SetActive(false);
 
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(false);
+
         if (menuCamera != null) menuCamera.gameObject.SetActive(true);
 
         SetNetworkButtonsInteractable(true);
@@ -214,6 +218,8 @@ public class StartupMenuController : MonoBehaviour
         if (controlsPanel != null) controlsPanel.SetActive(false);
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (inGameHudPanel != null) inGameHudPanel.SetActive(false);
+
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(false);
 
         if (ipInputField != null)
         {
@@ -243,6 +249,8 @@ public class StartupMenuController : MonoBehaviour
         if (controlsPanel != null) controlsPanel.SetActive(false);
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
 
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(false);
+
         PopulateHighScoreList();
     }
 
@@ -253,6 +261,8 @@ public class StartupMenuController : MonoBehaviour
         if (highScoresPanel != null) highScoresPanel.SetActive(false);
         if (controlsPanel != null) controlsPanel.SetActive(true);
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
+
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(false);
     }
 
     public void ShowPauseMenu()
@@ -264,6 +274,8 @@ public class StartupMenuController : MonoBehaviour
         if (controlsPanel != null) controlsPanel.SetActive(false);
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(true);
         if (inGameHudPanel != null) inGameHudPanel.SetActive(true);
+
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(false);
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -284,8 +296,13 @@ public class StartupMenuController : MonoBehaviour
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (inGameHudPanel != null) inGameHudPanel.SetActive(true);
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(true);
+
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     private void OnBackToPreviousPanel()
@@ -475,10 +492,15 @@ public class StartupMenuController : MonoBehaviour
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (inGameHudPanel != null) inGameHudPanel.SetActive(true);
 
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(true);
+
         if (menuCamera != null) menuCamera.gameObject.SetActive(false);
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
 
         UpdateHudText();
     }
@@ -488,6 +510,8 @@ public class StartupMenuController : MonoBehaviour
         isInGame = false;
         isPaused = false;
         isConnecting = false;
+
+        if (MobileHUD.Instance != null) MobileHUD.Instance.SetVisible(false);
 
         if (connectionTimeoutCoroutine != null)
         {
@@ -988,5 +1012,77 @@ public class StartupMenuController : MonoBehaviour
         if (font != null) tmp.font = font;
 
         return tmp;
+    }
+
+    private void EnsureControlsUI()
+    {
+        if (controlsPanel != null)
+        {
+            // If controlsPanel already exists in the scene, ensure back button listener is wired
+            if (backFromControlsButton == null)
+            {
+                backFromControlsButton = controlsPanel.GetComponentInChildren<Button>();
+            }
+            if (backFromControlsButton != null)
+            {
+                backFromControlsButton.onClick.RemoveAllListeners();
+                backFromControlsButton.onClick.AddListener(ShowMainMenu);
+            }
+            return;
+        }
+
+        // Dynamically construct a Cyberpunk ControlsPanel if not configured in scene
+        Transform canvasTransform = menuCanvas != null ? menuCanvas.transform : (mainMenuPanel != null ? mainMenuPanel.transform.parent : transform);
+        if (canvasTransform == null) return;
+
+        TMP_FontAsset font = topHighScoreBadgeText != null ? topHighScoreBadgeText.font : null;
+
+        GameObject panelObj = new GameObject("ControlsPanel", typeof(RectTransform));
+        panelObj.transform.SetParent(canvasTransform, false);
+        var panelRect = panelObj.GetComponent<RectTransform>();
+        panelRect.anchorMin = Vector2.zero;
+        panelRect.anchorMax = Vector2.one;
+        panelRect.sizeDelta = Vector2.zero;
+        controlsPanel = panelObj;
+
+        // Card Container
+        GameObject cardObj = new GameObject("ControlsCard", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
+        cardObj.transform.SetParent(panelObj.transform, false);
+        var cardRect = cardObj.GetComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(620, 600);
+
+        var cardImg = cardObj.GetComponent<Image>();
+        cardImg.color = new Color(0.04f, 0.08f, 0.14f, 0.95f);
+
+        var vlg = cardObj.GetComponent<VerticalLayoutGroup>();
+        vlg.padding = new RectOffset(36, 36, 28, 28);
+        vlg.spacing = 8;
+        vlg.childControlWidth = true;
+        vlg.childControlHeight = false;
+        vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
+
+        // Title
+        CreateTextElement(cardObj.transform, "GAME CONTROLS", 24, FontStyles.Bold, new Color(0.3f, 0.95f, 1f, 1f), TextAlignmentOptions.Center, font, 32);
+
+        // Section: Android Motion Controls
+        CreateTextElement(cardObj.transform, "📱 ANDROID MOTION CONTROLS", 15, FontStyles.Bold, new Color(0.2f, 0.9f, 0.6f, 1f), TextAlignmentOptions.Left, font, 22);
+        CreateTextElement(cardObj.transform, "• Tilt Phone Forward/Back: Move Forward & Backward\n• Tilt Phone Left/Right: Strafe Left & Right\n• Gyroscope: Turn & Tilt Phone to Look / Aim in 3D\n• Flick Phone Upward: Motion Jump Gesture\n• Touch Buttons: 🦘 Jump, ⚡ Sprint, 🧲 Tether, ✋ Use, 🎯 Re-Center Gyro", 13, FontStyles.Normal, new Color(0.85f, 0.95f, 1f, 0.9f), TextAlignmentOptions.Left, font, 80);
+
+        CreateSpacer(cardObj.transform, 6);
+
+        // Section: Desktop Controls
+        CreateTextElement(cardObj.transform, "💻 DESKTOP (KEYBOARD & MOUSE)", 15, FontStyles.Bold, new Color(0.4f, 0.75f, 1f, 1f), TextAlignmentOptions.Left, font, 22);
+        CreateTextElement(cardObj.transform, "• WASD: Move / Climb Surfaces\n• Mouse: First-Person Look & Aim\n• Space: Jump | Left Shift: Sprint | Left Ctrl: Crouch\n• E: Grapple & Tether Loot Items | F: Interact / Collect\n• Escape: Pause Menu / Settings", 13, FontStyles.Normal, new Color(0.85f, 0.92f, 1f, 0.85f), TextAlignmentOptions.Left, font, 80);
+
+        CreateSpacer(cardObj.transform, 12);
+
+        // Back Button
+        backFromControlsButton = CreateButton(cardObj.transform, "BackFromControlsButton", "BACK TO MAIN MENU", new Color(0.2f, 0.24f, 0.3f, 0.9f), new Color(0.8f, 0.85f, 0.9f, 1f), font, 40);
+        backFromControlsButton.onClick.AddListener(ShowMainMenu);
+
+        panelObj.SetActive(false);
     }
 }

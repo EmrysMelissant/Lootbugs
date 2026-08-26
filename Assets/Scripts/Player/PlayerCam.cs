@@ -46,13 +46,28 @@ public class PlayerCam : NetworkBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (!IsOwner || Cursor.lockState != CursorLockMode.Locked) return;
+        if (!IsOwner) return;
 
-        float mouseX = Input.GetAxisRaw("Mouse X") * Time.deltaTime * senseX;
-        float mouseY = Input.GetAxisRaw("Mouse Y") * Time.deltaTime * senseY;
+        bool isMobile = Application.isMobilePlatform;
+        if (!isMobile && Cursor.lockState != CursorLockMode.Locked) return;
 
-        yRotation += mouseX;
-        xRotation -= mouseY;
+        float lookDeltaX = 0f;
+        float lookDeltaY = 0f;
+
+        if (MobileMotionManager.Instance != null)
+        {
+            Vector2 look = MobileMotionManager.Instance.GetLookDelta(senseX, senseY);
+            lookDeltaX = look.x;
+            lookDeltaY = look.y;
+        }
+        else
+        {
+            lookDeltaX = Input.GetAxisRaw("Mouse X") * Time.deltaTime * senseX;
+            lookDeltaY = Input.GetAxisRaw("Mouse Y") * Time.deltaTime * senseY;
+        }
+
+        yRotation += lookDeltaX;
+        xRotation -= lookDeltaY;
         xRotation = Mathf.Clamp(xRotation, -80f, 80f);
 
         if (camera != null)

@@ -107,20 +107,24 @@ sequenceDiagram
 ---
 
 ### 3.2 Player & Movement Subsystem (`Assets/Scripts/PlayerMovement/`)
-The player controller incorporates high-mobility physical movement, surface alignment, climbing, and procedural animation.
-
-- **[PlayerMovement.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/PlayerMovement.cs)**:
+- **[MobileMotionManager.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/MobileMotionManager.cs)**:
+  - Central motion tracking singleton & cross-platform input provider. Manages device gyroscope attitude for 3D camera look, accelerometer pitch/roll tilt for character locomotion, physical upward flick gesture detection for jumping, and Editor simulation.
+- **[MobileHUD.cs](file:///e:/github/Lootbugs/Assets/Scripts/UI/MobileHUD.cs)**:
+  - Neon cyberpunk on-screen touch overlay. Provides responsive touch buttons (Jump, Sprint, Crouch, Tether, Interact, Gyro Recalibration, Pause Menu), real-time tilt locomotion visualizer bubble, touch look drag zone, and safe area management.
+- **[AndroidBuildTools.cs](file:///e:/github/Lootbugs/Assets/Scripts/Editor/AndroidBuildTools.cs)**:
+  - Unity Editor automation tools (`Lootbugs > Android`) for configuring Android PlayerSettings (package ID, landscape orientation, ARM64, 60Hz sensors) and building standalone `.apk` binaries.
+- **[PlayerMovement.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/PlayerMovement.cs)**:
   - First-person rigidbody controller handling walking, sprinting, crouching, jumping, slope drag, and ground raycasts.
-- **[PlayerCam.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/PlayerCam.cs) & [MoveCamera.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/MoveCamera.cs)**:
-  - Mouse look rotation, field-of-view adjustments, camera transform smoothing.
-- **[Climbing.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/Climbing.cs) & [NewClimbing.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/NewClimbing.cs)**:
-  - Surface normal raycasting enabling wall and ceiling climbing mechanics.
+- **[PlayerCam.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/PlayerCam.cs) & [MoveCamera.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/MoveCamera.cs)**:
+  - Gyroscope & mouse look rotation, field-of-view adjustments, camera transform smoothing.
+- **[Climbing.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/Climbing.cs) & [NewClimbing.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/NewClimbing.cs)**:
+  - Surface normal raycasting enabling wall and ceiling climbing mechanics with motion tilt locomotion.
   - Tracks player stamina, currency (`Money`), and upgrade multipliers (`gainMultiplier`).
-- **[PlayerInteraction.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/PlayerInteraction.cs)** & **[IInteractable.cs](file:///e:/github/Lootbugs/Assets/Scripts/IInteractable.cs)**:
-  - Center-screen raycasting interface for triggering interactable scene objects.
+- **[PlayerInteraction.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/PlayerInteraction.cs)** & **[IInteractable.cs](file:///e:/github/Lootbugs/Assets/Scripts/IInteractable.cs)**:
+  - Center-screen raycasting interface for triggering interactable scene objects via touch button or KeyCode.F.
 - **Procedural IK Animation (`Procedural Movement/`)**:
-  - **[BodyController.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/Procedural%20Movement/BodyController.cs)**: Computes multi-legged bug body height, tilt, and roll based on underlying terrain normal vectors.
-  - **[LegAimGrounding.cs](file:///e:/github/Lootbugs/Assets/Scripts/PlayerMovement/Procedural%20Movement/LegAimGrounding.cs)**: Raycasts leg targets down to the ground to drive realistic procedural foot placements.
+  - **[BodyController.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/Procedural%20Movement/BodyController.cs)**: Computes multi-legged bug body height, tilt, and roll based on underlying terrain normal vectors.
+  - **[LegAimGrounding.cs](file:///e:/github/Lootbugs/Assets/Scripts/Player/Procedural%20Movement/LegAimGrounding.cs)**: Raycasts leg targets down to the ground to drive realistic procedural foot placements.
 
 ---
 

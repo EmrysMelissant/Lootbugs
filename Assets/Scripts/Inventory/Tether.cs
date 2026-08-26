@@ -44,7 +44,8 @@ public class NetworkTetherSystem : NetworkBehaviour
     void Update()
     {
         if (!IsOwner) return;
-        if (Input.GetKeyDown(tetherKey)) HandleTetherInput();
+        bool tetherPressed = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsTetherTriggered(tetherKey) : Input.GetKeyDown(tetherKey);
+        if (tetherPressed) HandleTetherInput();
     }
 
     void HandleTetherInput()

@@ -98,6 +98,28 @@ public class NewClimbing : NetworkBehaviour
         Health = MaxHealth;
     }
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+        if (IsOwner)
+        {
+            if (MobileMotionManager.Instance == null)
+            {
+                GameObject motionObj = new GameObject("MobileMotionManager", typeof(MobileMotionManager));
+                DontDestroyOnLoad(motionObj);
+            }
+            if (MobileHUD.Instance == null)
+            {
+                GameObject hudObj = new GameObject("MobileHUD", typeof(MobileHUD));
+                DontDestroyOnLoad(hudObj);
+            }
+            if (MobileHUD.Instance != null)
+            {
+                MobileHUD.Instance.SetVisible(true);
+            }
+        }
+    }
+
     void Update()
     {
         if (!IsOwner) return;
@@ -110,9 +132,16 @@ public class NewClimbing : NetworkBehaviour
 
         if (!isAlive) return;
 
-        playerInput.x = Input.GetAxisRaw("Horizontal");
-        playerInput.y = Input.GetAxisRaw("Vertical");
-        playerInput = Vector2.ClampMagnitude(playerInput, 1f);
+        if (MobileMotionManager.Instance != null)
+        {
+            playerInput = MobileMotionManager.Instance.GetMoveInput();
+        }
+        else
+        {
+            playerInput.x = Input.GetAxisRaw("Horizontal");
+            playerInput.y = Input.GetAxisRaw("Vertical");
+            playerInput = Vector2.ClampMagnitude(playerInput, 1f);
+        }
 
         if (playerInputSpace)
         {
@@ -125,16 +154,18 @@ public class NewClimbing : NetworkBehaviour
             forwardAxis = ProjectDirectionOnPlane(Vector3.forward, upAxis);
         }
 
-        if (Input.GetButtonDown("Jump"))
+        bool jumpPressed = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsJumpTriggered() : (Input.GetButtonDown("Jump") || Input.GetKeyDown(KeyCode.Space));
+        if (jumpPressed)
         {
             desiredJump = true;
         }
-        if (Input.GetKeyDown(KeyCode.LeftShift) && stamina > 0)
+
+        bool sprintRequested = MobileMotionManager.Instance != null ? MobileMotionManager.Instance.IsSprintActive() : Input.GetKey(KeyCode.LeftShift);
+        if (sprintRequested && stamina > 0)
         {
             sprinting = true;
         }
-
-        if (Input.GetKeyUp(KeyCode.LeftShift) || stamina <= 0)
+        else if (!sprintRequested || stamina <= 0)
         {
             sprinting = false;
         }
