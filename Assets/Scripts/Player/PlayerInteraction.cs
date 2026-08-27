@@ -61,4 +61,15 @@ public class PlayerInteraction : NetworkBehaviour
             interactionPrompt.text = "";
         }
     }
+
+    [ServerRpc]
+    public void RequestStartRunServerRpc(string sceneName)
+    {
+        if (!IsServer) return;
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && NetworkManager.Singleton.IsServer)
+        {
+            NetworkManager.Singleton.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+        }
+    }
 }
