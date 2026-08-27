@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lootbugs | Co-Op Roguelike Survival Game</title>
+  <meta name="description" content="Official website for Lootbugs - a 3D co-op survival roguelike where you scale walls as an 8-legged robotic spider, scavenging scrap to satisfy the Queen before you become food.">
+  <meta name="keywords" content="Lootbugs, Unity 6, Roguelike, Co-op, Multiplayer, HDRP, Netcode for GameObjects, Spider Robot, Indie Game">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,800;1,400&family=Orbitron:wght@400;600;800;900&family=Syne:wght@500;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="cyber-theme">
+  <!-- Scanline Overlay -->
+  <div class="scanline-overlay" aria-hidden="true"></div>
+  
+  <!-- Canvas Background for dynamic cyber particles -->
+  <canvas id="bg-particle-canvas" class="bg-canvas"></canvas>
+
+  <!-- Navigation Header -->
+  <header class="site-header" id="navbar">
+    <div class="nav-container">
+      <a href="#hero" class="brand-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 40 40" width="32" height="32" fill="none">
+            <circle cx="20" cy="20" r="8" fill="#09e6d7" />
+            <circle cx="17" cy="18" r="2" fill="#080a10" />
+            <circle cx="23" cy="18" r="2" fill="#080a10" />
+            <!-- Legs -->
+            <path d="M12 16 Q6 10 4 18 M28 16 Q34 10 36 18 M12 20 Q5 20 3 26 M28 20 Q35 20 37 26 M12 24 Q6 28 5 34 M28 24 Q34 28 35 34 M14 26 Q10 36 8 38 M26 26 Q30 36 32 38" stroke="#09e6d7" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="brand-title">LOOTBUGS</span>
+          <span class="brand-sub">CORE PROTOCOL</span>
+        </div>
+      </a>
+
+      <nav class="nav-menu" id="navMenu">
+        <a href="#overview" class="nav-link">Overview</a>
+        <a href="#lore" class="nav-link">The Queen</a>
+        <a href="#mechanics" class="nav-link">Mechanics</a>
+        <a href="#lab" class="nav-link highlight-link">Interactive Lab</a>
+        <a href="#economy" class="nav-link">Loot & Shop</a>
+        <a href="#tech" class="nav-link">Tech & Architecture</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button id="sfx-toggle" class="btn-icon" title="Toggle Sci-Fi SFX Audio" aria-label="Toggle Audio">
+          <span class="icon-sound">🔊</span>
+          <span class="sound-status">AUDIO ON</span>
+        </button>
+        <a href="#lab" class="btn btn-neon-cyan nav-cta">TEST SIMULATOR</a>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section" id="hero">
+    <div class="hero-backdrop-glow"></div>
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="status-badge">
+          <span class="pulse-dot"></span>
+          <span>MCT BACHELOR PROJECT • UNITY 6 & HDRP • NGO MULTIPLAYER</span>
+        </div>
+        
+        <h1 class="hero-title">
+          <span class="glitch-text" data-text="LOOTBUGS">LOOTBUGS</span>
+        </h1>
+        
+        <p class="hero-tagline">
+          &ldquo;The Queen desires food. Make sure it&rsquo;s not you.&rdquo;
+        </p>
+
+        <p class="hero-desc">
+          A high-intensity 3D co-op survival roguelike for 1&ndash;4 players. Step into the chassis of an 8-legged robotic scavenger with procedural Inverse Kinematics. Climb walls, tether glowing scrap, evade lethal AI horrors, and feed the colossal mechanical Queen before time runs out.
+        </p>
+
+        <div class="hero-stats-row">
+          <div class="stat-pill">
+            <span class="stat-num">1&ndash;4</span>
+            <span class="stat-label">Co-op Players</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num">360&deg;</span>
+            <span class="stat-label">Wall & Ceiling Climb</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num">8-IK</span>
+            <span class="stat-label">Procedural Legs</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num">NGO</span>
+            <span class="stat-label">Server-Authoritative</span>
+          </div>
+        </div>
+
+        <div class="hero-actions">
+          <a href="#lab" class="btn btn-primary btn-glow">
+            <span class="btn-text">TRY IK SPIDER SIMULATOR</span>
+            <span class="btn-arrow">&rarr;</span>
+          </a>
+          <a href="#overview" class="btn btn-secondary">
+            <span>EXPLORE GAMEPLAY</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-visual-card">
+        <div class="visual-frame">
+          <img src="images/hero.jpg" alt="Lootbugs 8-legged spider robot crawling vertically on a dark sci-fi wall" class="hero-img">
+          <div class="hud-reticle top-left"></div>
+          <div class="hud-reticle top-right"></div>
+          <div class="hud-reticle bottom-left"></div>
+          <div class="hud-reticle bottom-right"></div>
+          <div class="hud-overlay-tag">
+            <span class="hud-tag-title">UNIT 04-SCAVENGER</span>
+            <span class="hud-tag-meta">STATUS: OPERATIONAL // WALL GRIP: 100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Game Overview & Core Loop -->
+  <section class="section-container" id="overview">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-eyebrow">THE OPERATIONAL DIRECTIVE</span>
+        <h2 class="section-title">The Scavenge Loop</h2>
+        <p class="section-lead">Inspired by co-op roguelike hits like <em>Lethal Company</em> and <em>R.E.P.O.</em>, every run is an unpredictable battle against time, physics, and roaming predators.</p>
+      </div>
+
+      <div class="core-loop-grid">
+        <div class="loop-card" data-step="01">
+          <div class="loop-step">STEP 01</div>
+          <div class="loop-icon-box">🚀</div>
+          <h3 class="loop-title">Lobby & Deployment</h3>
+          <p class="loop-desc">Assemble at the orbital Hub Base with up to 3 friends. Customize your robot's chassis color, upgrade your flashlight, and board the deployment pod into abandoned procedural facilities.</p>
+        </div>
+
+        <div class="loop-card" data-step="02">
+          <div class="loop-step">STEP 02</div>
+          <div class="loop-icon-box">🕷️</div>
+          <h3 class="loop-title">360° Wall Scavenging</h3>
+          <p class="loop-desc">Traverse broken ceilings and vertical walls. Utilize suction fields and elastic tether cables to drag scrap canisters, scientific data drives, and radioactive cores.</p>
+        </div>
+
+        <div class="loop-card" data-step="03">
+          <div class="loop-step">STEP 03</div>
+          <div class="loop-icon-box">⚠️</div>
+          <h3 class="loop-title">Evade Hostile FSM AI</h3>
+          <p class="loop-desc">Monsters patrol dark corridors with dynamic sight and hearing. Heavy loot slows down your movement speed according to the physical weight formula. Outrun or hide!</p>
+        </div>
+
+        <div class="loop-card" data-step="04">
+          <div class="loop-step">STEP 04</div>
+          <div class="loop-icon-box">🔥</div>
+          <h3 class="loop-title">Feed the Queen & Upgrade</h3>
+          <p class="loop-desc">Return to base to dump loot into the Queen's incinerator mouth. Satisfy her escalating quota to earn credits for the Shopkeeper, or fail and become her feast.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The Lore & The Queen -->
+  <section class="section-container lore-section" id="lore">
+    <div class="container">
+      <div class="lore-grid">
+        <div class="lore-media">
+          <div class="media-container glow-border-orange">
+            <img src="images/queen.jpg" alt="The colossal mechanical Queen in her subterranean nest" class="queen-img">
+            <div class="furnace-warning-badge">
+              <span class="flame-icon">🔥</span>
+              <span>INCINERATOR CORE: ACTIVE</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lore-content">
+          <span class="section-eyebrow">SECTOR 0 - SUBTERRANEAN HIVE</span>
+          <h2 class="section-title">The Mechanical Queen</h2>
+          <p class="lore-paragraph">
+            In a post-apocalyptic era where humanity has vanished, the ruins of civilization are claimed by apex machine intelligences and mutated predators. At the apex sits <strong>The Queen</strong>: a colossal spider-like biomechanical furnace that devours scrap metal and high-tech components to fabricate new scavenger units.
+          </p>
+          <p class="lore-paragraph">
+            You and your crew were spawned for a single purpose: venture into dark, unpowered complexes, gather abandoned human artifacts, and drag them into her fiery jaws. If your tally falls short of her quota, she won't starve—she'll consume you instead.
+          </p>
+
+          <!-- Interactive CRT Lore Terminal -->
+          <div class="crt-terminal">
+            <div class="terminal-header">
+              <span class="terminal-dot red"></span>
+              <span class="terminal-dot yellow"></span>
+              <span class="terminal-dot green"></span>
+              <span class="terminal-title">QUEEN_INTERFACE_LOG // TTY-04</span>
+            </div>
+            <div class="terminal-body" id="terminalLog">
+              <div class="terminal-line"><span class="prompt">&gt;</span> <span class="t-cyan">SYSTEM:</span> DEPOSIT HATCH READY.</div>
+              <div class="terminal-line"><span class="prompt">&gt;</span> <span class="t-yellow">QUOTA TARGET:</span> 1,250 CREDITS [CYCLE #03]</div>
+              <div class="terminal-line"><span class="prompt">&gt;</span> <span class="t-red">WARNING:</span> FAILURE TO DELIVER WILL TRIGGER PROTOCOL CONSUME_DRONES.</div>
+              <div class="terminal-line blink"><span class="prompt">&gt;</span> WAITING FOR CREW CARGO..._</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Key Gameplay Mechanics -->
+  <section class="section-container bg-darker" id="mechanics">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-eyebrow">ENGINEERED FOR PHYSICS & FUN</span>
+        <h2 class="section-title">Core Gameplay Systems</h2>
+        <p class="section-lead">Custom built in Unity 6 with advanced math, Inverse Kinematics, and networked physics.</p>
+      </div>
+
+      <div class="mechanics-grid">
+        <!-- Feature 1 -->
+        <div class="mech-card">
+          <div class="mech-header">
+            <div class="mech-badge">SURFACE NORMAL PHYSICS</div>
+            <h3>360° Omnidirectional Climbing</h3>
+          </div>
+          <p>Standard Unity gravity is disabled in favor of a dynamic custom gravity vector. Using raycast dot-product analysis (`EvaluateCollision` & `SnapToGround`), your robot crawls effortlessly across ceilings, pipes, and vertical walls.</p>
+          <ul class="mech-feature-list">
+            <li><span>✓</span> Continuous surface normal alignment</li>
+            <li><span>✓</span> Smooth pitch & roll compensation</li>
+            <li><span>✓</span> Toggleable Static vs Dynamic camera mode</li>
+          </ul>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="mech-card">
+          <div class="mech-header">
+            <div class="mech-badge">RAYCAST & IK</div>
+            <h3>Procedural 8-Legged Body Animation</h3>
+          </div>
+          <p>Rather than canned walk animations, all 8 spider legs use Inverse Kinematics and raycasting to automatically plant their tips on uneven ground, moving along smooth sinusoidal arcs (`sin(t * π) * 0.3`).</p>
+          <ul class="mech-feature-list">
+            <li><span>✓</span> Adaptive terrain conformity</li>
+            <li><span>✓</span> Alternating 4-leg gait synchronization</li>
+            <li><span>✓</span> Dynamic step height offsets</li>
+          </ul>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="mech-card">
+          <div class="mech-header">
+            <div class="mech-badge">PHYSICS SIMULATION</div>
+            <h3>Suction & Elastic Tether Dragging</h3>
+          </div>
+          <p>Ditch traditional grid inventories for tactile physical looting. Activate suction fields to attract nearby salvage, or attach network-synced elastic tethers to drag heavy loads behind you.</p>
+          <ul class="mech-feature-list">
+            <li><span>✓</span> Real-time weight vs speed penalty</li>
+            <li><span>✓</span> Network-synced spring joints</li>
+            <li><span>✓</span> Physics knockbacks & collisions</li>
+          </ul>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="mech-card">
+          <div class="mech-header">
+            <div class="mech-badge">FINITE STATE MACHINE</div>
+            <h3>Hostile AI State Architecture</h3>
+          </div>
+          <p>Dungeon predators operate under an autonomous Server-Authoritative FSM with distinct <strong>Idle</strong>, <strong>Patrol</strong>, <strong>Chase</strong>, and <strong>Attack</strong> states, leveraging dynamic vision cones and NavMesh navigation.</p>
+          <ul class="mech-feature-list">
+            <li><span>✓</span> Sightline & angle detection math</li>
+            <li><span>✓</span> NavMesh pathfinding across rooms</li>
+            <li><span>✓</span> Server-validated damage RPCs</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Action Banner -->
+      <div class="gameplay-banner">
+        <img src="images/gameplay.jpg" alt="Spider bots tethering radioactive scrap canisters while evading lurking monster" class="gameplay-img">
+        <div class="gameplay-caption">
+          <h4>Tactical Physical Looting</h4>
+          <p>Tethering high-tier scrap yields massive credits for the Queen, but the additional weight slows your sprint speed—making stealth and team coordination crucial.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE LAB (Interactive Demos) -->
+  <section class="section-container lab-section" id="lab">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-eyebrow">INTERACTIVE LAB // HANDS-ON DEMOS</span>
+        <h2 class="section-title">Test the Game Systems Live</h2>
+        <p class="section-lead">Interact directly with the mathematical models and physics algorithms from the Lootbugs engine right inside your browser.</p>
+      </div>
+
+      <!-- Interactive Tabs -->
+      <div class="lab-tabs">
+        <button class="lab-tab-btn active" data-tab="spider-sim">🕷️ Procedural Spider IK</button>
+        <button class="lab-tab-btn" data-tab="loot-calc">⚖️ Loot Drag & Speed Calculator</button>
+        <button class="lab-tab-btn" data-tab="shop-sim">🎩 Shop & Upgrades Terminal</button>
+        <button class="lab-tab-btn" data-tab="radar-sim">📡 Hostile AI FSM Radar</button>
+      </div>
+
+      <!-- Tab 1: Procedural Spider Canvas -->
+      <div class="lab-content active" id="spider-sim">
+        <div class="sim-grid">
+          <div class="sim-canvas-wrapper">
+            <div class="canvas-header">
+              <span class="canvas-title">PROCEDURAL 8-LEG INVERSE KINEMATICS SIMULATOR</span>
+              <span class="canvas-tip">Move cursor / finger inside viewport to steer spider</span>
+            </div>
+            <canvas id="spiderCanvas" width="700" height="460"></canvas>
+            <div class="canvas-hud">
+              <span id="spider-pos">POSITION: (350, 230)</span>
+              <span id="spider-speed">GAIT: ALTERNATING TRIPOD / OCTO</span>
+            </div>
+          </div>
+
+          <div class="sim-controls-panel">
+            <h3 class="panel-heading">Simulation Parameters</h3>
+            <p class="panel-desc">Adjust the spider bot's procedural IK and chassis physics in real time.</p>
+
+            <div class="control-group">
+              <label for="stepSpeed">Step Speed & Agility: <span id="val-stepSpeed">1.0x</span></label>
+              <input type="range" id="stepSpeed" min="0.4" max="2.5" step="0.1" value="1.0">
+            </div>
+
+            <div class="control-group">
+              <label for="legReach">Leg Reach Radius: <span id="val-legReach">55px</span></label>
+              <input type="range" id="legReach" min="30" max="90" step="5" value="55">
+            </div>
+
+            <div class="control-group">
+              <label>Chassis Glow Color:</label>
+              <div class="color-picker-row">
+                <button class="color-pill active" data-color="#09e6d7" style="background:#09e6d7;" title="Cyan Neon"></button>
+                <button class="color-pill" data-color="#ff3366" style="background:#ff3366;" title="Plasma Crimson"></button>
+                <button class="color-pill" data-color="#00ff66" style="background:#00ff66;" title="Toxic Green"></button>
+                <button class="color-pill" data-color="#ff9e00" style="background:#ff9e00;" title="Amber Warning"></button>
+                <button class="color-pill" data-color="#a855f7" style="background:#a855f7;" title="Void Purple"></button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="toggle-control">
+                <input type="checkbox" id="flashlightToggle" checked>
+                <span class="toggle-switch"></span>
+                <span>Volumetric Headlamp Spotlight</span>
+              </label>
+            </div>
+
+            <div class="control-group">
+              <label class="toggle-control">
+                <input type="checkbox" id="obstacleToggle" checked>
+                <span class="toggle-switch"></span>
+                <span>Facility Wall Obstacles (Raycast Stepping)</span>
+              </label>
+            </div>
+
+            <button id="btn-reset-spider" class="btn btn-outline btn-full">Reset Position to Center</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Loot Weight & Speed Calculator -->
+      <div class="lab-content" id="loot-calc">
+        <div class="calc-grid">
+          <div class="calc-formula-card">
+            <div class="formula-header">
+              <span class="formula-badge">ACTUAL IN-GAME EQUATION (C#)</span>
+              <code>EffectiveSpeed = max(MinSpeed, BaseSpeed - (TotalWeight / PlayerStrength))</code>
+            </div>
+            
+            <div class="speedometer-container">
+              <div class="speed-dial">
+                <div class="speed-needle" id="speedNeedle" style="transform: rotate(-45deg);"></div>
+                <div class="speed-center-hub">
+                  <span id="speedValueText" class="speed-digital">8.0</span>
+                  <span class="speed-unit">m/s SPEED</span>
+                </div>
+              </div>
+
+              <div class="speed-stat-boxes">
+                <div class="stat-box">
+                  <span class="box-label">TOTAL WEIGHT</span>
+                  <span class="box-value" id="calcWeight">0.0 kg</span>
+                </div>
+                <div class="stat-box">
+                  <span class="box-label">ESTIMATED CREDITS</span>
+                  <span class="box-value t-cyan" id="calcValue">0 C</span>
+                </div>
+                <div class="stat-box">
+                  <span class="box-label">MOBILITY PENALTY</span>
+                  <span class="box-value t-red" id="calcPenalty">-0.0%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tether-visual-box">
+              <div class="tether-drone">🕷️ ROBOT</div>
+              <div class="tether-line-visual" id="tetherLine"></div>
+              <div class="tether-payload" id="tetherPayload">NO ITEMS TETHERED</div>
+            </div>
+          </div>
+
+          <div class="calc-inventory-panel">
+            <h3 class="panel-heading">Add Salvage Items to Tether</h3>
+            <p class="panel-desc">Click items below to attach them to your robot's tether line and observe weight drag.</p>
+
+            <div class="loot-btn-grid">
+              <button class="btn-loot-item" data-name="Common Scrap" data-weight="0.5" data-val="10" data-rarity="common">
+                <span class="item-dot common"></span>
+                <div class="item-info">
+                  <strong>Common Scrap</strong>
+                  <span>0.5 kg • 10 Credits</span>
+                </div>
+                <span class="btn-add">+</span>
+              </button>
+
+              <button class="btn-loot-item" data-name="Circuit Board" data-weight="1.0" data-val="25" data-rarity="uncommon">
+                <span class="item-dot uncommon"></span>
+                <div class="item-info">
+                  <strong>Circuit Board</strong>
+                  <span>1.0 kg • 25 Credits</span>
+                </div>
+                <span class="btn-add">+</span>
+              </button>
+
+              <button class="btn-loot-item" data-name="Quantum Sensor" data-weight="1.5" data-val="50" data-rarity="rare">
+                <span class="item-dot rare"></span>
+                <div class="item-info">
+                  <strong>Quantum Sensor</strong>
+                  <span>1.5 kg • 50 Credits</span>
+                </div>
+                <span class="btn-add">+</span>
+              </button>
+
+              <button class="btn-loot-item" data-name="Plasma Core" data-weight="2.0" data-val="100" data-rarity="epic">
+                <span class="item-dot epic"></span>
+                <div class="item-info">
+                  <strong>Plasma Core</strong>
+                  <span>2.0 kg • 100 Credits</span>
+                </div>
+                <span class="btn-add">+</span>
+              </button>
+
+              <button class="btn-loot-item" data-name="AI Neural Matrix" data-weight="2.5" data-val="500" data-rarity="legendary">
+                <span class="item-dot legendary"></span>
+                <div class="item-info">
+                  <strong>AI Neural Matrix</strong>
+                  <span>2.5 kg • 500 Credits</span>
+                </div>
+                <span class="btn-add">+</span>
+              </button>
+            </div>
+
+            <div class="strength-control-box">
+              <label for="strengthSlider">Player Strength Stat: <span id="strengthVal">1.0</span> (Upgrades reduce burden)</label>
+              <input type="range" id="strengthSlider" min="0.5" max="3.0" step="0.25" value="1.0">
+            </div>
+
+            <div class="tether-list-container">
+              <div class="tether-list-head">
+                <span>Tethered Inventory (<span id="tetherCount">0</span> items)</span>
+                <button id="btnClearLoot" class="btn-text-danger">Clear All</button>
+              </div>
+              <div class="tether-items-list" id="tetherItemsList">
+                <div class="empty-msg">No scrap attached. Click items above to tether them.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Shop & Upgrades Terminal -->
+      <div class="lab-content" id="shop-sim">
+        <div class="shop-grid">
+          <div class="shopkeeper-profile">
+            <div class="shopkeeper-frame">
+              <img src="images/shopkeeper.jpg" alt="Friendly Shopkeeper Spider Bot with fedora hat" class="shopkeeper-img">
+              <div class="speech-bubble">
+                &ldquo;Welcome to Core-Tech Upgrades! Hand over your scrap credits and I'll soup up your servos!&rdquo;
+              </div>
+            </div>
+
+            <div class="shop-wallet-box">
+              <div class="wallet-row">
+                <span class="wallet-label">AVAILABLE SCRAP CREDITS:</span>
+                <span class="wallet-credits" id="playerCredits">750 C</span>
+              </div>
+              <div class="wallet-actions">
+                <button class="btn btn-sm btn-outline" id="btnDepositLoot">+250 C (Scrap Run)</button>
+                <button class="btn btn-sm btn-outline" id="btnResetShop">Reset Upgrades</button>
+              </div>
+            </div>
+
+            <div class="shop-price-rule">
+              <span class="info-icon">ℹ️</span>
+              <span><strong>Exponential Progression:</strong> In-game prices scale up by <strong>+20%</strong> per level: <code>Cost = BaseCost &times; 1.20<sup>Level</sup></code></span>
+            </div>
+          </div>
+
+          <div class="shop-inventory-list">
+            <!-- Upgrade Item: Max Health -->
+            <div class="shop-item-card" data-upgrade="health" data-base-cost="50">
+              <div class="upgrade-icon">❤️</div>
+              <div class="upgrade-details">
+                <div class="upgrade-title-row">
+                  <h4>Chassis Plating (Health)</h4>
+                  <span class="upgrade-level">LVL <span class="lvl-num">0</span>/5</span>
+                </div>
+                <p class="upgrade-desc">Increases total chassis health capacity to survive predator strikes.</p>
+                <div class="upgrade-meter">
+                  <div class="meter-bar" style="width: 0%;"></div>
+                </div>
+              </div>
+              <button class="btn btn-buy" data-upgrade="health">
+                <span>BUY</span>
+                <span class="cost-tag">50 C</span>
+              </button>
+            </div>
+
+            <!-- Upgrade Item: Move Speed -->
+            <div class="shop-item-card" data-upgrade="speed" data-base-cost="60">
+              <div class="upgrade-icon">⚡</div>
+              <div class="upgrade-details">
+                <div class="upgrade-title-row">
+                  <h4>Overclocked Servos (Speed)</h4>
+                  <span class="upgrade-level">LVL <span class="lvl-num">0</span>/5</span>
+                </div>
+                <p class="upgrade-desc">Boosts base crawling speed across floors, walls, and ceiling surfaces.</p>
+                <div class="upgrade-meter">
+                  <div class="meter-bar" style="width: 0%;"></div>
+                </div>
+              </div>
+              <button class="btn btn-buy" data-upgrade="speed">
+                <span>BUY</span>
+                <span class="cost-tag">60 C</span>
+              </button>
+            </div>
+
+            <!-- Upgrade Item: Strength -->
+            <div class="shop-item-card" data-upgrade="strength" data-base-cost="75">
+              <div class="upgrade-icon">🦾</div>
+              <div class="upgrade-details">
+                <div class="upgrade-title-row">
+                  <h4>Hydraulic Winch (Strength)</h4>
+                  <span class="upgrade-level">LVL <span class="lvl-num">0</span>/5</span>
+                </div>
+                <p class="upgrade-desc">Reduces the movement speed penalty incurred when tethering heavy scrap.</p>
+                <div class="upgrade-meter">
+                  <div class="meter-bar" style="width: 0%;"></div>
+                </div>
+              </div>
+              <button class="btn btn-buy" data-upgrade="strength">
+                <span>BUY</span>
+                <span class="cost-tag">75 C</span>
+              </button>
+            </div>
+
+            <!-- Upgrade Item: Stamina -->
+            <div class="shop-item-card" data-upgrade="stamina" data-base-cost="45">
+              <div class="upgrade-icon">🔋</div>
+              <div class="upgrade-details">
+                <div class="upgrade-title-row">
+                  <h4>Capacitor Bank (Stamina)</h4>
+                  <span class="upgrade-level">LVL <span class="lvl-num">0</span>/5</span>
+                </div>
+                <p class="upgrade-desc">Extends maximum sprint duration and speeds up battery recharge.</p>
+                <div class="upgrade-meter">
+                  <div class="meter-bar" style="width: 0%;"></div>
+                </div>
+              </div>
+              <button class="btn btn-buy" data-upgrade="stamina">
+                <span>BUY</span>
+                <span class="cost-tag">45 C</span>
+              </button>
+            </div>
+
+            <!-- Upgrade Item: Flashlight -->
+            <div class="shop-item-card" data-upgrade="flashlight" data-base-cost="100">
+              <div class="upgrade-icon">🔦</div>
+              <div class="upgrade-details">
+                <div class="upgrade-title-row">
+                  <h4>Photon Beam (Flashlight)</h4>
+                  <span class="upgrade-level">LVL <span class="lvl-num">0</span>/3</span>
+                </div>
+                <p class="upgrade-desc">Expands the flashlight's volumetric reach and beam width in dark rooms.</p>
+                <div class="upgrade-meter">
+                  <div class="meter-bar" style="width: 0%;"></div>
+                </div>
+              </div>
+              <button class="btn btn-buy" data-upgrade="flashlight">
+                <span>BUY</span>
+                <span class="cost-tag">100 C</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Hostile AI FSM Radar -->
+      <div class="lab-content" id="radar-sim">
+        <div class="radar-grid">
+          <div class="radar-display-box">
+            <div class="radar-scope-container">
+              <div class="radar-sweep-line"></div>
+              <div class="radar-grid-rings"></div>
+              <div class="radar-player-blip">
+                <span>YOU</span>
+              </div>
+              <div class="radar-monster-blip" id="monsterBlip">
+                <div class="sight-cone" id="sightCone"></div>
+                <span class="blip-label" id="monsterBlipLabel">AI PREDATOR</span>
+              </div>
+            </div>
+            <div class="radar-meta-status">
+              <span id="fsm-status-chip" class="status-chip chip-patrol">CURRENT FSM STATE: PATROL</span>
+              <span id="fsm-dist">DISTANCE TO TARGET: 18.4 m</span>
+            </div>
+          </div>
+
+          <div class="radar-control-panel">
+            <h3 class="panel-heading">AI Finite State Machine (FSM) Visualizer</h3>
+            <p class="panel-desc">Simulate player visibility, distance triggers, and observe how the predator's server-side state machine responds in real time.</p>
+
+            <div class="fsm-state-flow">
+              <div class="fsm-node" id="node-idle">
+                <span class="fsm-node-tag">STATE</span>
+                <strong>Idle</strong>
+                <small>Ambient Scan</small>
+              </div>
+              <span class="fsm-arrow">&rarr;</span>
+              <div class="fsm-node active" id="node-patrol">
+                <span class="fsm-node-tag">STATE</span>
+                <strong>Patrol</strong>
+                <small>NavMesh Waypoints</small>
+              </div>
+              <span class="fsm-arrow">&rarr;</span>
+              <div class="fsm-node" id="node-chase">
+                <span class="fsm-node-tag">STATE</span>
+                <strong>Chase</strong>
+                <small>Direct Pursuit</small>
+              </div>
+              <span class="fsm-arrow">&rarr;</span>
+              <div class="fsm-node" id="node-attack">
+                <span class="fsm-node-tag">STATE</span>
+                <strong>Attack</strong>
+                <small>Lethal Strike</small>
+              </div>
+            </div>
+
+            <div class="sim-actions-grid">
+              <button class="btn btn-outline" id="btnTriggerSight">👁️ Step into Sight Cone (Trigger Chase)</button>
+              <button class="btn btn-outline" id="btnTriggerHide">📦 Break Line of Sight (Return to Patrol)</button>
+              <button class="btn btn-outline" id="btnTriggerAttack">💥 Enter Strike Range (Trigger Attack)</button>
+            </div>
+
+            <div class="fsm-code-card">
+              <div class="fsm-code-header">
+                <span>C# SERVER AI EVALUATION LOGIC</span>
+              </div>
+              <pre><code>if (CanSeePlayer(targetPlayer)) {
+    nextState = new ChaseState(this, targetPlayer);
+} else if (remainingDistance <= stoppingDistance) {
+    nextState = new PatrolState(this);
+}</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Loot Rarities & Scrap Codex -->
+  <section class="section-container bg-darker" id="economy">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-eyebrow">FACILITY MANIFEST & VALUATION</span>
+        <h2 class="section-title">Loot Tiers & Scrap Codex</h2>
+        <p class="section-lead">The Queen awards credits according to rarity, weight, and component complexity.</p>
+      </div>
+
+      <div class="loot-table-wrapper">
+        <table class="cyber-table">
+          <thead>
+            <tr>
+              <th>Rarity Tier</th>
+              <th>Spawn Chance</th>
+              <th>Point / Credit Value</th>
+              <th>Weight Burden</th>
+              <th>Typical Salvage Item</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="tier-common">
+              <td><span class="rarity-badge common">COMMON</span></td>
+              <td><strong>60%</strong></td>
+              <td>10 Credits</td>
+              <td>0.5 kg</td>
+              <td>Rusted Structural Scrap, Copper Wiring</td>
+            </tr>
+            <tr class="tier-uncommon">
+              <td><span class="rarity-badge uncommon">UNCOMMON</span></td>
+              <td><strong>25%</strong></td>
+              <td>25 Credits</td>
+              <td>1.0 kg</td>
+              <td>Industrial Circuit Boards, Optical Lenses</td>
+            </tr>
+            <tr class="tier-rare">
+              <td><span class="rarity-badge rare">RARE</span></td>
+              <td><strong>10%</strong></td>
+              <td>50 Credits</td>
+              <td>1.5 kg</td>
+              <td>Sub-Atomic Quantum Sensor, Coolant Matrix</td>
+            </tr>
+            <tr class="tier-epic">
+              <td><span class="rarity-badge epic">EPIC</span></td>
+              <td><strong>4%</strong></td>
+              <td>100 Credits</td>
+              <td>2.0 kg</td>
+              <td>Overcharged Plasma Battery, Fusion Cell</td>
+            </tr>
+            <tr class="tier-legendary">
+              <td><span class="rarity-badge legendary">LEGENDARY</span></td>
+              <td><strong>1%</strong></td>
+              <td>500 Credits</td>
+              <td>2.5 kg</td>
+              <td>Sentient AI Neural Core, Dark Matter Canister</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack & Architecture -->
+  <section class="section-container" id="tech">
+    <div class="container">
+      <div class="section-header text-center">
+        <span class="section-eyebrow">ENGINEERING & ACADEMIC DOSSIER</span>
+        <h2 class="section-title">Technical Architecture</h2>
+        <p class="section-lead">Developed by Emrys Melissant as a Bachelor Project for <em>Multimedia & Creative Technologies (MCT)</em> at Hogeschool MCT.</p>
+      </div>
+
+      <div class="tech-grid">
+        <div class="tech-card">
+          <div class="tech-icon">🎮</div>
+          <h3>Unity 6 & HDRP 17.3</h3>
+          <p>Utilizes Unity 6's high-performance runtime with the High Definition Render Pipeline for volumetric lighting, physical shaders, and realistic shadow mapping in dark abandoned facilities.</p>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-icon">🌐</div>
+          <h3>Netcode for GameObjects (NGO)</h3>
+          <p>Server-Authoritative multiplayer with Client-Side movement prediction. Remote Procedure Calls (`[ServerRpc]`, `[ClientRpc]`) synchronize physics tethering and scoring safely.</p>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-icon">🎙️</div>
+          <h3>Vivox 3D Voice Audio</h3>
+          <p>Integrated spatial 3D proximity voice communication so team members can whisper or shout across procedural corridors with realistic distance attenuation.</p>
+        </div>
+
+        <div class="tech-card">
+          <div class="tech-icon">🗺️</div>
+          <h3>Runtime NavMesh AI</h3>
+          <p>Dungeon generation constructs modular rooms at runtime, triggering an asynchronous NavMesh surface bake so monster FSM agents navigate smoothly across dynamically generated corridors.</p>
+        </div>
+      </div>
+
+      <!-- Academic Credits Box -->
+      <div class="academic-box">
+        <div class="academic-left">
+          <span class="academic-tag">BACHELOR PROJECT CREDITS</span>
+          <h4>Howest MCT &bull; 3D & XR Specialization</h4>
+          <p><strong>Developer:</strong> Emrys Melissant<br>
+          <strong>Mentors & Evaluators:</strong> Koen Heylen &bull; Pieter Jorissen<br>
+          <strong>Asset Pipeline:</strong> Leartes Studios Cyberpunk Gigapack & Sketchfab Robotics</p>
+        </div>
+        <div class="academic-right">
+          <div class="quote-card">
+            <p>&ldquo;Lootbugs combines procedural inverse kinematics, custom normal gravity physics, and server-authoritative netcode to craft a distinct, engaging multiplayer roguelike experience.&rdquo;</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <div class="logo-icon small">
+          <svg viewBox="0 0 40 40" width="24" height="24" fill="none">
+            <circle cx="20" cy="20" r="8" fill="#09e6d7" />
+            <path d="M12 16 Q6 10 4 18 M28 16 Q34 10 36 18 M12 20 Q5 20 3 26 M28 20 Q35 20 37 26 M12 24 Q6 28 5 34 M28 24 Q34 28 35 34 M14 26 Q10 36 8 38 M26 26 Q30 36 32 38" stroke="#09e6d7" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="footer-title">LOOTBUGS</span>
+        <span class="footer-copy">&copy; 2026 Emrys Melissant. All rights reserved.</span>
+      </div>
+
+      <div class="footer-links">
+        <a href="#hero">Top</a>
+        <a href="#overview">Overview</a>
+        <a href="#lore">The Queen</a>
+        <a href="#mechanics">Mechanics</a>
+        <a href="#lab">Simulators</a>
+        <a href="#tech">Architecture</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>
