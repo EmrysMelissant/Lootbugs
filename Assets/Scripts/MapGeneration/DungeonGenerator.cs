@@ -1,33 +1,80 @@
-using System.Collections;
 using System.Collections.Generic;
 using Unity.AI.Navigation;
 using UnityEngine;
 
 public class DungeonGenerator : MonoBehaviour
 {
+    [Header("Starter Room Settings")]
+    [Tooltip("An existing room in the scene to start generation from (e.g. RunStart). If assigned, the generator builds out from its door anchors.")]
+    [SerializeField] private GameObject staticStartRoom;
+
+    [Tooltip("Optional prefab to instantiate as the fixed starter room if no in-scene static room is assigned.")]
+    [SerializeField] private GameObject startRoomPrefab;
+
     [Header("Generator Settings")]
-    public GameObject[] roomPrefabs;
-    public int maxRooms = 10;
-    public string doorTag = "doorTag";
-    public NavMeshSurface surface;
+    [Tooltip("Pool of modular room prefabs to spawn and connect.")]
+    [SerializeField] private GameObject[] roomPrefabs;
 
-    private List<Transform> openAnchors = new List<Transform>();
-    private List<GameObject> spawnedRooms = new List<GameObject>();
+    [Tooltip("Maximum number of rooms to generate in the map.")]
+    [SerializeField] private int maxRooms = 10;
 
-    void Start()
+    [Tooltip("Tag used to identify door anchor transforms on rooms.")]
+    [SerializeField] private string doorTag = "doorTag";
+
+    [Tooltip("NavMeshSurface component to rebuild after generation.")]
+    [SerializeField] private NavMeshSurface surface;
+
+    public GameObject StaticStartRoom
+    {
+        get => staticStartRoom;
+        set => staticStartRoom = value;
+    }
+
+    public GameObject StartRoomPrefab
+    {
+        get => startRoomPrefab;
+        set => startRoomPrefab = value;
+    }
+
+    public GameObject[] RoomPrefabs => roomPrefabs;
+    public int MaxRooms => maxRooms;
+    public string DoorTag => doorTag;
+    public NavMeshSurface Surface => surface;
+
+    private readonly List<Transform> openAnchors = new List<Transform>();
+    private readonly List<GameObject> spawnedRooms = new List<GameObject>();
+
+    private void Start()
     {
         GenerateMap();
-        surface.BuildNavMesh();
+
+        if (surface != null)
+        {
+            surface.BuildNavMesh();
+        }
     }
 
     public void GenerateMap()
     {
-        if (roomPrefabs.Length == 0) return;
+        openAnchors.Clear();
+        spawnedRooms.Clear();
 
-        // 1. Spawn the initial starter room
-        GameObject startRoom = Instantiate(roomPrefabs[Random.Range(0, roomPrefabs.Length)], Vector3.zero, Quaternion.identity);
+        // 1. Resolve and initialize the starting room
+        GameObject startRoom = GetOrSpawnStartRoom();
+        if (startRoom == null)
+        {
+            Debug.LogWarning("[DungeonGenerator] No starting room or room prefabs available to generate map.");
+            return;
+        }
+
         spawnedRooms.Add(startRoom);
         AddAnchorsFromRoom(startRoom);
+
+        if (roomPrefabs == null || roomPrefabs.Length == 0)
+        {
+            Debug.LogWarning("[DungeonGenerator] Room prefabs array is empty. Only start room was initialized.");
+            return;
+        }
 
         // 2. Loop to attach remaining rooms
         int attempts = 0;
@@ -49,8 +96,41 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    private GameObject GetOrSpawnStartRoom()
+    {
+        // 1. Use assigned static scene room
+        if (staticStartRoom != null)
+        {
+            return staticStartRoom;
+        }
+
+        // 2. Auto-detect common static start room in the scene if unassigned (e.g. "RunStart")
+        GameObject foundStaticRoom = GameObject.Find("RunStart");
+        if (foundStaticRoom != null)
+        {
+            staticStartRoom = foundStaticRoom;
+            return staticStartRoom;
+        }
+
+        // 3. Spawn designated start room prefab if provided
+        if (startRoomPrefab != null)
+        {
+            return Instantiate(startRoomPrefab, transform.position, transform.rotation);
+        }
+
+        // 4. Fallback: instantiate a random room from the room prefabs pool
+        if (roomPrefabs != null && roomPrefabs.Length > 0)
+        {
+            return Instantiate(roomPrefabs[Random.Range(0, roomPrefabs.Length)], transform.position, Quaternion.identity);
+        }
+
+        return null;
+    }
+
     private bool TryAttachRoom(GameObject roomPrefab, Transform targetAnchor)
     {
+        if (roomPrefab == null || targetAnchor == null) return false;
+
         // Temporary instance to manipulate transforms
         GameObject newRoom = Instantiate(roomPrefab);
         List<Transform> newAnchors = GetAnchors(newRoom);
@@ -78,8 +158,6 @@ public class DungeonGenerator : MonoBehaviour
         Vector3 positionOffset = targetAnchor.position - newRoomAnchor.position;
         newRoom.transform.position += positionOffset;
 
-        // Simple overlap check (Optional bounds validation can be added here)
-        
         // Add remaining open anchors to the global list
         newAnchors.Remove(newRoomAnchor);
         openAnchors.AddRange(newAnchors);
@@ -90,15 +168,18 @@ public class DungeonGenerator : MonoBehaviour
 
     private void AddAnchorsFromRoom(GameObject room)
     {
+        if (room == null) return;
         openAnchors.AddRange(GetAnchors(room));
     }
 
     private List<Transform> GetAnchors(GameObject room)
     {
         List<Transform> anchors = new List<Transform>();
+        if (room == null) return anchors;
+
         foreach (Transform child in room.GetComponentsInChildren<Transform>())
         {
-            if (child.CompareTag(doorTag))
+            if (child != null && child.CompareTag(doorTag))
             {
                 anchors.Add(child);
             }

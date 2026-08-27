@@ -10,52 +10,122 @@ public class ItemCollector : MonoBehaviour, IInteractable
     [Tooltip("The position items will be pulled toward. Defaults to this GameObject if left empty.")]
     [SerializeField] private Transform targetTransform;
     [SerializeField] private float pullSpeed = 8f;
-    private bool disableGravityWhilePulling = true;
-    private bool startPulling = false;
+    [SerializeField] private bool disableGravityWhilePulling = true;
 
-    private List<Item> collectedItems = new List<Item>();
+    [Header("Detection Settings")]
+    [Tooltip("Layer mask used to detect items when scanning area.")]
+    [SerializeField] private LayerMask itemLayer = ~0;
+
+    private bool startPulling = false;
+    private readonly HashSet<Item> collectedItems = new HashSet<Item>();
+    private readonly Collider[] overlapBuffer = new Collider[64];
+    private Collider triggerCollider;
 
     public string InteractionText => interactText;
+    public bool IsPulling => startPulling;
 
     private void Awake()
     {
-        
         if (targetTransform == null)
         {
             targetTransform = transform;
         }
+
+        // Cache the trigger collider
+        Collider[] colliders = GetComponents<Collider>();
+        foreach (Collider col in colliders)
+        {
+            if (col.isTrigger)
+            {
+                triggerCollider = col;
+                break;
+            }
+        }
+    }
+
+    private void Start()
+    {
+        ScanForItemsInZone();
+    }
+
+    private void OnEnable()
+    {
+        ScanForItemsInZone();
     }
 
     public void Interact(GameObject interactor)
     {
-        for (int i = 0; i < collectedItems.Count; i++)
+        // Refresh items currently in the collection zone
+        ScanForItemsInZone();
+
+        // Toggle pulling state ONCE
+        startPulling = !startPulling;
+
+        Debug.Log($"[ItemCollector] {(startPulling ? "Started" : "Stopped")} pulling by {interactor.name}. Items tracked: {collectedItems.Count}");
+    }
+
+    public void ScanForItemsInZone()
+    {
+        int hitCount = 0;
+        if (triggerCollider != null)
         {
-            if (collectedItems[i] != null)
+            Bounds b = triggerCollider.bounds;
+            hitCount = Physics.OverlapBoxNonAlloc(b.center, b.extents, overlapBuffer, transform.rotation, itemLayer, QueryTriggerInteraction.Collide);
+        }
+        else
+        {
+            hitCount = Physics.OverlapSphereNonAlloc(transform.position, 10f, overlapBuffer, itemLayer, QueryTriggerInteraction.Collide);
+        }
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = overlapBuffer[i];
+            if (hit == null) continue;
+
+            Item item = hit.GetComponentInParent<Item>();
+            if (item != null && !collectedItems.Contains(item))
             {
-                startPulling = !startPulling;
+                collectedItems.Add(item);
             }
         }
+
+        // Clean up any destroyed items
+        collectedItems.RemoveWhere(item => item == null);
     }
 
     private void FixedUpdate()
     {
         if (!startPulling) return;
-        for (int i = collectedItems.Count - 1; i >= 0; i--)
+
+        // Clean up destroyed items
+        collectedItems.RemoveWhere(item => item == null);
+
+        foreach (Item item in collectedItems)
         {
-            Item item = collectedItems[i];
-
-            if (item == null)
+            if (item != null)
             {
-                collectedItems.RemoveAt(i);
-                continue;
+                PullItem(item);
             }
-
-            PullItem(item);
         }
     }
 
     private void PullItem(Item item)
     {
+        if (item == null) return;
+
+        // If item is parented to PersistentItemContainer or anything else, unparent to allow free movement
+        if (item.transform.parent != null)
+        {
+            if (ItemSaveZone.Instance != null && ItemSaveZone.Instance.IsItemTracked(item.gameObject))
+            {
+                ItemSaveZone.Instance.RemoveItem(item.gameObject);
+            }
+            else
+            {
+                item.transform.SetParent(null);
+            }
+        }
+
         Vector3 targetPosition = targetTransform.position;
         if (item.TryGetComponent<Rigidbody>(out Rigidbody rb))
         {
@@ -64,6 +134,7 @@ public class ItemCollector : MonoBehaviour, IInteractable
                 rb.useGravity = false;
             }
 
+            rb.WakeUp();
             Vector3 newPosition = Vector3.MoveTowards(rb.position, targetPosition, pullSpeed * Time.fixedDeltaTime);
             rb.MovePosition(newPosition);
         }
@@ -75,30 +146,24 @@ public class ItemCollector : MonoBehaviour, IInteractable
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Item"))
+        Item item = other.GetComponentInParent<Item>();
+        if (item != null && !collectedItems.Contains(item))
         {
-            Item item = other.GetComponent<Item>();
-            if (item != null && !collectedItems.Contains(item))
-            {
-                collectedItems.Add(item);
-            }
+            collectedItems.Add(item);
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Item"))
+        Item item = other.GetComponentInParent<Item>();
+        if (item != null && collectedItems.Contains(item))
         {
-            Item item = other.GetComponent<Item>();
-            if (item != null && collectedItems.Contains(item))
+            if (disableGravityWhilePulling && item.TryGetComponent<Rigidbody>(out Rigidbody rb))
             {
-                if (disableGravityWhilePulling && item.TryGetComponent<Rigidbody>(out Rigidbody rb))
-                {
-                    rb.useGravity = true;
-                }
-
-                collectedItems.Remove(item);
+                rb.useGravity = true;
             }
+
+            collectedItems.Remove(item);
         }
     }
 }

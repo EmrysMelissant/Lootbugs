@@ -10,10 +10,19 @@ public class Scoring : NetworkBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Only run scoring logic on the server to prevent duplicate score triggers in multiplayer
+        // Only run scoring and kill logic on the server to prevent duplicate execution
         if (!IsServer) return;
 
-        if (other.CompareTag("Item") && other.TryGetComponent<Item>(out Item item))
+        // Kill any player entering the scoring area
+        NewClimbing player = other.GetComponentInParent<NewClimbing>();
+        if (player != null && player.IsAlive)
+        {
+            player.Die();
+            return;
+        }
+
+        Item item = other.GetComponentInParent<Item>();
+        if (item != null)
         {
             int itemPoints = item.NetPoints.Value;
             totalScore += itemPoints;
@@ -30,19 +39,19 @@ public class Scoring : NetworkBehaviour
             NewClimbing[] players = FindObjectsByType<NewClimbing>(FindObjectsSortMode.None);
 
             // Award money to every player
-            foreach (NewClimbing player in players)
+            foreach (NewClimbing p in players)
             {
-                player.Money += itemPoints * player.gainMultiplier;
+                p.Money += itemPoints * p.gainMultiplier;
             }
 
             // Despawn networked object across clients, or destroy if local
-            if (other.TryGetComponent<NetworkObject>(out NetworkObject netObj))
+            if (item.TryGetComponent<NetworkObject>(out NetworkObject netObj) && netObj.IsSpawned)
             {
                 netObj.Despawn();
             }
             else
             {
-                Destroy(other.gameObject);
+                Destroy(item.gameObject);
             }
         }
     }

@@ -23,6 +23,9 @@ public class PersistentPlayer : NetworkBehaviour
     [Tooltip("The name of the Hub scene.")]
     [SerializeField] private string hubSceneName = "MainHub";
 
+    [Tooltip("The name of the Main Menu scene.")]
+    [SerializeField] private string menuSceneName = "MainMenu";
+
     [Header("Gravity & Teleport Settings")]
     [Tooltip("Whether to disable Rigidbody and movement gravity until spawning and teleport are finished.")]
     [SerializeField] private bool disableGravityUntilSpawned = true;
@@ -31,6 +34,7 @@ public class PersistentPlayer : NetworkBehaviour
     [SerializeField] private float gravityDisableDuration = 0.2f;
 
     private bool hasCompletedInitialSpawn = false;
+    private bool hasSpawnedInHub = false;
     private Coroutine activeTeleportCoroutine;
 
     private void Awake()
@@ -55,12 +59,18 @@ public class PersistentPlayer : NetworkBehaviour
         {
             DisablePlayerGravity();
         }
-        TeleportToTargetLocation(SceneManager.GetActiveScene(), isCreationOrConnection: true);
-        hasCompletedInitialSpawn = true;
+
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (!IsMenuScene(activeScene))
+        {
+            TeleportToTargetLocation(activeScene, isCreationOrConnection: true);
+        }
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (IsMenuScene(scene)) return;
+
         if (disableGravityUntilSpawned)
         {
             DisablePlayerGravity();
@@ -68,16 +78,17 @@ public class PersistentPlayer : NetworkBehaviour
 
         bool isInitial = !hasCompletedInitialSpawn;
         TeleportToTargetLocation(scene, isCreationOrConnection: isInitial);
-        if (isInitial && IsSpawned)
-        {
-            hasCompletedInitialSpawn = true;
-        }
     }
 
     private void TeleportToTargetLocation(Scene scene, bool isCreationOrConnection = false)
     {
         // Only teleport the local player owner
         if (!IsOwner) return;
+
+        if (IsMenuScene(scene))
+        {
+            return;
+        }
 
         if (disableGravityUntilSpawned)
         {
@@ -89,23 +100,28 @@ public class PersistentPlayer : NetworkBehaviour
 
         GameObject targetPointObj = null;
 
-        // Route to RespawnPoint on initial creation/connection OR when dead player enters the Hub
-        if (isCreationOrConnection || (isHub && isDead))
+        // Route to RespawnPoint on initial creation/connection, first time entering Hub, OR when dead player enters the Hub
+        if ((isHub && (!hasSpawnedInHub || isCreationOrConnection || isDead)) || (!isHub && isCreationOrConnection))
         {
-            targetPointObj = FindRespawnPoint();
+            targetPointObj = isHub ? FindRespawnPoint() : FindSpawnPoint();
             if (targetPointObj == null)
             {
-                Debug.LogWarning($"[PersistentPlayer] RespawnPoint not found in '{scene.name}'. Falling back to SpawnPoint.");
-                targetPointObj = FindSpawnPoint();
+                Debug.LogWarning($"[PersistentPlayer] Target point not found in '{scene.name}'. Falling back.");
+                targetPointObj = isHub ? FindSpawnPoint() : FindRespawnPoint();
             }
 
             if (targetPointObj != null)
             {
-                if (isDead)
+                if (isHub && isDead)
                 {
                     ReviveDeadPlayerInHub(targetPointObj.transform.position);
                 }
                 ExecuteTeleport(targetPointObj.transform);
+                if (isHub)
+                {
+                    hasSpawnedInHub = true;
+                }
+                hasCompletedInitialSpawn = true;
             }
         }
         else
@@ -114,6 +130,7 @@ public class PersistentPlayer : NetworkBehaviour
             if (targetPointObj != null)
             {
                 ExecuteTeleport(targetPointObj.transform);
+                hasCompletedInitialSpawn = true;
             }
             else
             {
@@ -262,6 +279,19 @@ public class PersistentPlayer : NetworkBehaviour
 
         return scene.name.Equals(hubSceneName, StringComparison.OrdinalIgnoreCase)
             || scene.name.IndexOf("Hub", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private bool IsMenuScene(Scene scene)
+    {
+        if (string.IsNullOrEmpty(scene.name))
+        {
+            scene = SceneManager.GetActiveScene();
+        }
+
+        if (string.IsNullOrEmpty(scene.name)) return false;
+
+        return scene.name.Equals(menuSceneName, StringComparison.OrdinalIgnoreCase)
+            || scene.name.IndexOf("Menu", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private GameObject FindSpawnPoint()

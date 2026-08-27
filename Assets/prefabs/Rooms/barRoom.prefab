@@ -3515,6 +3515,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: SM_DiningTable (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 1031739780, guid: abc00000000005858497103071649719, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
     - target: {fileID: 1031739781, guid: abc00000000005858497103071649719, type: 3}
       propertyPath: m_LocalPosition.x
       value: 15.08
@@ -3554,6 +3558,22 @@ PrefabInstance:
     - target: {fileID: 1031739781, guid: abc00000000005858497103071649719, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1031739784, guid: abc00000000005858497103071649719, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
+    - target: {fileID: 1031739788, guid: abc00000000005858497103071649719, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
+    - target: {fileID: 1031739792, guid: abc00000000005858497103071649719, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
+      objectReference: {fileID: 0}
+    - target: {fileID: 6340247637280932017, guid: abc00000000005858497103071649719, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 2147483647
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

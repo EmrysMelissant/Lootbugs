@@ -300,7 +300,7 @@ QualitySettings:
     adaptiveVsyncExtraB: 0
     lodBias: 2
     meshLodThreshold: 1
-    maximumLODLevel: 0
+    maximumLODLevel: 2
     enableLODCrossFade: 1
     streamingMipmapsActive: 0
     streamingMipmapsAddAllCameras: 1

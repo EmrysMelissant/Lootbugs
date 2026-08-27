@@ -14,19 +14,22 @@ public class StartRun : MonoBehaviour, IInteractable
 
     private readonly HashSet<Collider> collidersInZone = new HashSet<Collider>();
 
+
     public string InteractionText
     {
         get
         {
-            int totalPlayers = GetTotalConnectedPlayerCount();
+            if (!isActiveAndEnabled) return "";
+
+            int totalAlivePlayers = GetTotalAlivePlayerCount();
             int readyPlayers = GetReadyPlayerCount();
 
-            if (totalPlayers > 0 && readyPlayers >= totalPlayers)
+            if (totalAlivePlayers > 0 && readyPlayers >= totalAlivePlayers)
             {
-                return "Start Run";
+                return "Ready";
             }
 
-            return $"({readyPlayers}/{totalPlayers}) Players Ready";
+            return $"({readyPlayers}/{totalAlivePlayers}) Players Ready";
         }
     }
 
@@ -39,8 +42,15 @@ public class StartRun : MonoBehaviour, IInteractable
         }
     }
 
+    private void OnDisable()
+    {
+        collidersInZone.Clear();
+    }
+
     private void OnTriggerEnter(Collider other)
     {
+        if (!isActiveAndEnabled) return;
+
         if (other != null)
         {
             collidersInZone.Add(other);
@@ -57,16 +67,24 @@ public class StartRun : MonoBehaviour, IInteractable
 
     public void Interact(GameObject interactor)
     {
-        int totalPlayers = GetTotalConnectedPlayerCount();
+        if (!isActiveAndEnabled) return;
+
+        int totalAlivePlayers = GetTotalAlivePlayerCount();
         int readyPlayers = GetReadyPlayerCount();
 
-        if (totalPlayers == 0 || readyPlayers < totalPlayers)
+        if (totalAlivePlayers == 0 || readyPlayers < totalAlivePlayers)
         {
-            Debug.Log($"[StartRun] Not all players are ready! ({readyPlayers}/{totalPlayers})");
+            Debug.Log($"[StartRun] Not all alive players are ready! ({readyPlayers}/{totalAlivePlayers})");
             return;
         }
 
-        Debug.Log($"[StartRun] All players ready ({readyPlayers}/{totalPlayers})! Starting run...");
+        Debug.Log($"[StartRun] All alive players ready ({readyPlayers}/{totalAlivePlayers})! Starting run...");
+        
+        if (runSceneName != "MainHub" && runSceneName != "MainMenu")
+        {
+            Quota.MarkRunStarted();
+        }
+
         LoadRunScene(interactor);
     }
 
@@ -102,19 +120,44 @@ public class StartRun : MonoBehaviour, IInteractable
         }
     }
 
-    public int GetTotalConnectedPlayerCount()
+    public int GetTotalAlivePlayerCount()
     {
+        return GetAlivePlayers().Count;
+    }
+
+    public List<NewClimbing> GetAlivePlayers()
+    {
+        List<NewClimbing> alivePlayers = new List<NewClimbing>();
+
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
-            int netCount = NetworkManager.Singleton.ConnectedClientsList.Count;
-            if (netCount > 0)
+            foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
             {
-                return netCount;
+                if (client == null || client.PlayerObject == null) continue;
+
+                NewClimbing player = client.PlayerObject.GetComponent<NewClimbing>();
+                if (IsPlayerAlive(player) && !alivePlayers.Contains(player))
+                {
+                    alivePlayers.Add(player);
+                }
+            }
+        }
+        else
+        {
+            NewClimbing[] scenePlayers = FindObjectsByType<NewClimbing>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            if (scenePlayers != null)
+            {
+                foreach (var player in scenePlayers)
+                {
+                    if (IsPlayerAlive(player) && !alivePlayers.Contains(player))
+                    {
+                        alivePlayers.Add(player);
+                    }
+                }
             }
         }
 
-        NewClimbing[] scenePlayers = FindObjectsByType<NewClimbing>(FindObjectsSortMode.None);
-        return scenePlayers != null ? scenePlayers.Length : 0;
+        return alivePlayers;
     }
 
     public int GetReadyPlayerCount()
@@ -135,9 +178,7 @@ public class StartRun : MonoBehaviour, IInteractable
                 if (client == null || client.PlayerObject == null) continue;
 
                 NewClimbing player = client.PlayerObject.GetComponent<NewClimbing>();
-                if (player == null) continue;
-
-                if (IsPlayerInZone(player))
+                if (IsPlayerAlive(player) && IsPlayerInZone(player))
                 {
                     if (!readyPlayers.Contains(player))
                     {
@@ -153,7 +194,7 @@ public class StartRun : MonoBehaviour, IInteractable
                 if (col == null) continue;
 
                 NewClimbing player = col.GetComponentInParent<NewClimbing>();
-                if (player != null && !readyPlayers.Contains(player))
+                if (IsPlayerAlive(player) && !readyPlayers.Contains(player))
                 {
                     readyPlayers.Add(player);
                 }
@@ -161,6 +202,14 @@ public class StartRun : MonoBehaviour, IInteractable
         }
 
         return readyPlayers;
+    }
+
+    private bool IsPlayerAlive(NewClimbing player)
+    {
+        if (player == null) return false;
+        if (!player.gameObject.activeInHierarchy) return false;
+        if (!player.IsAlive || player.Health <= 0f) return false;
+        return true;
     }
 
     private bool IsPlayerInZone(NewClimbing player)
