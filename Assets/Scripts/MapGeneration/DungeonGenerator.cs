@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Unity.AI.Navigation;
+using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -24,6 +26,34 @@ public class DungeonGenerator : MonoBehaviour
     [Tooltip("NavMeshSurface component to rebuild after generation.")]
     [SerializeField] private NavMeshSurface surface;
 
+    [Header("Enemy Spawning Settings")]
+    [Tooltip("Pool of enemy prefabs to randomly choose from.")]
+    [SerializeField] private GameObject[] enemyPrefabs;
+
+    [Tooltip("Tag used to identify enemy spawn points.")]
+    [SerializeField] private string enemySpawnTag = "Checkpoint";
+
+    [Tooltip("Alternative name substring used to identify enemy spawn points.")]
+    [SerializeField] private string enemySpawnNameSubstring = "checkpoint";
+
+    [Tooltip("Whether to prevent spawning enemies in the starting room.")]
+    [SerializeField] private bool excludeStartRoom = true;
+
+    [Tooltip("Number of enemies guaranteed to spawn if sufficient spawn points exist.")]
+    [SerializeField] private int guaranteedEnemyCount = 3;
+
+    [Tooltip("Initial probability (0-1) for spawning the first extra enemy beyond guaranteed count.")]
+    [SerializeField] [Range(0f, 1f)] private float initialExtraSpawnChance = 0.75f;
+
+    [Tooltip("Decay factor (0-1) multiplied to spawn chance for each consecutive extra enemy.")]
+    [SerializeField] [Range(0f, 1f)] private float extraSpawnDecayFactor = 0.5f;
+
+    [Tooltip("Minimum spawn probability floor threshold before terminating extra rolls.")]
+    [SerializeField] [Range(0f, 1f)] private float minExtraSpawnChance = 0.05f;
+
+    [Tooltip("Maximum total number of enemies that can spawn.")]
+    [SerializeField] private int maxEnemyCount = 15;
+
     public GameObject StaticStartRoom
     {
         get => staticStartRoom;
@@ -41,6 +71,22 @@ public class DungeonGenerator : MonoBehaviour
     public string DoorTag => doorTag;
     public NavMeshSurface Surface => surface;
 
+    public GameObject[] EnemyPrefabs
+    {
+        get => enemyPrefabs;
+        set => enemyPrefabs = value;
+    }
+
+    public string EnemySpawnTag => enemySpawnTag;
+    public string EnemySpawnNameSubstring => enemySpawnNameSubstring;
+    public bool ExcludeStartRoom => excludeStartRoom;
+    public int GuaranteedEnemyCount => guaranteedEnemyCount;
+    public float InitialExtraSpawnChance => initialExtraSpawnChance;
+    public float ExtraSpawnDecayFactor => extraSpawnDecayFactor;
+    public float MinExtraSpawnChance => minExtraSpawnChance;
+    public int MaxEnemyCount => maxEnemyCount;
+    public List<GameObject> SpawnedRooms => spawnedRooms;
+
     private readonly List<Transform> openAnchors = new List<Transform>();
     private readonly List<GameObject> spawnedRooms = new List<GameObject>();
 
@@ -52,6 +98,8 @@ public class DungeonGenerator : MonoBehaviour
         {
             surface.BuildNavMesh();
         }
+
+        SpawnEnemies();
     }
 
     public void GenerateMap()
@@ -94,6 +142,179 @@ public class DungeonGenerator : MonoBehaviour
                 openAnchors.Remove(currentAnchor);
             }
         }
+    }
+
+    public void SpawnEnemies()
+    {
+        // Netcode authority check: only the server/host spawns networked enemies
+        bool isNetworkActive = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+        if (isNetworkActive && !NetworkManager.Singleton.IsServer)
+        {
+            return;
+        }
+
+        if (enemyPrefabs == null || enemyPrefabs.Length == 0)
+        {
+            Debug.LogWarning("[DungeonGenerator] No enemy prefabs assigned for spawning.");
+            return;
+        }
+
+        // 1. Gather all spawn points from rooms
+        List<Transform> candidateSpawnPoints = GetEnemySpawnPoints();
+        if (candidateSpawnPoints.Count == 0)
+        {
+            Debug.LogWarning("[DungeonGenerator] No enemy spawn points found across generated rooms.");
+            return;
+        }
+
+        // 2. Calculate how many enemies to spawn: 3 guaranteed + geometrically decreasing chance for extras
+        int enemiesToSpawn = guaranteedEnemyCount;
+        float currentChance = initialExtraSpawnChance;
+
+        while (enemiesToSpawn < maxEnemyCount && currentChance >= minExtraSpawnChance)
+        {
+            if (Random.value <= currentChance)
+            {
+                enemiesToSpawn++;
+                currentChance *= extraSpawnDecayFactor;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        // Cap to available spawn points so each spawn point is used at most once
+        int finalSpawnCount = Mathf.Min(enemiesToSpawn, candidateSpawnPoints.Count);
+
+        // 3. Shuffle candidate spawn points (Fisher-Yates)
+        for (int i = candidateSpawnPoints.Count - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            Transform temp = candidateSpawnPoints[i];
+            candidateSpawnPoints[i] = candidateSpawnPoints[randomIndex];
+            candidateSpawnPoints[randomIndex] = temp;
+        }
+
+        // 4. Spawn enemies
+        for (int i = 0; i < finalSpawnCount; i++)
+        {
+            Transform spawnPoint = candidateSpawnPoints[i];
+            if (spawnPoint == null) continue;
+
+            GameObject enemyPrefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
+            if (enemyPrefab == null) continue;
+
+            Vector3 spawnPosition = spawnPoint.position;
+            Quaternion spawnRotation = spawnPoint.rotation;
+
+            // Sample nearest valid NavMesh position within 3.0 units
+            if (NavMesh.SamplePosition(spawnPosition, out NavMeshHit hit, 3.0f, NavMesh.AllAreas))
+            {
+                spawnPosition = hit.position;
+            }
+
+            GameObject spawnedEnemy = Instantiate(enemyPrefab, spawnPosition, spawnRotation);
+
+            if (spawnedEnemy != null)
+            {
+                if (spawnedEnemy.TryGetComponent<NavMeshAgent>(out NavMeshAgent agent))
+                {
+                    if (agent != null && agent.isOnNavMesh)
+                    {
+                        agent.Warp(spawnPosition);
+                    }
+                }
+
+                if (isNetworkActive && NetworkManager.Singleton.IsServer)
+                {
+                    if (spawnedEnemy.TryGetComponent<NetworkObject>(out NetworkObject netObj))
+                    {
+                        if (netObj != null)
+                        {
+                            netObj.Spawn();
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Refresh checkpoint references for enemy patrol behavior
+        GameEnviroment.Refresh();
+    }
+
+    private List<Transform> GetEnemySpawnPoints()
+    {
+        List<Transform> spawnPoints = new List<Transform>();
+        GameObject startRoom = (spawnedRooms.Count > 0) ? spawnedRooms[0] : null;
+
+        for (int i = 0; i < spawnedRooms.Count; i++)
+        {
+            GameObject room = spawnedRooms[i];
+            if (room == null) continue;
+
+            // Optionally skip the starter room so enemies don't spawn right next to players
+            if (excludeStartRoom && (room == startRoom || room == staticStartRoom))
+            {
+                continue;
+            }
+
+            Transform[] allChildren = room.GetComponentsInChildren<Transform>(true);
+            int pointsFoundInRoom = 0;
+
+            for (int j = 0; j < allChildren.Length; j++)
+            {
+                Transform child = allChildren[j];
+                if (child == null || child == room.transform) continue;
+
+                if (IsEnemySpawnPoint(child))
+                {
+                    if (!spawnPoints.Contains(child))
+                    {
+                        spawnPoints.Add(child);
+                        pointsFoundInRoom++;
+                    }
+                }
+            }
+
+            // Fallback: If a non-starter room has no explicit spawn point transforms, use room center
+            if (pointsFoundInRoom == 0)
+            {
+                spawnPoints.Add(room.transform);
+            }
+        }
+
+        return spawnPoints;
+    }
+
+    private bool IsEnemySpawnPoint(Transform candidate)
+    {
+        if (candidate == null) return false;
+
+        // 1. Tag comparison
+        if (!string.IsNullOrEmpty(enemySpawnTag))
+        {
+            try
+            {
+                if (candidate.CompareTag(enemySpawnTag)) return true;
+            }
+            catch (UnityException) { }
+        }
+
+        try
+        {
+            if (candidate.CompareTag("SpawnPoint") || candidate.CompareTag("Checkpoint")) return true;
+        }
+        catch (UnityException) { }
+
+        // 2. Name substring comparison
+        if (!string.IsNullOrEmpty(enemySpawnNameSubstring) &&
+            candidate.name.IndexOf(enemySpawnNameSubstring, System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private GameObject GetOrSpawnStartRoom()
@@ -186,4 +407,4 @@ public class DungeonGenerator : MonoBehaviour
         }
         return anchors;
     }
-}
+}
