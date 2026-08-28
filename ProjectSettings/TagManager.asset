@@ -10,6 +10,8 @@ TagManager:
   - doorTag
   - SpawnPoint
   - RespawnPoint
+  - SkyboxCamera
+  - ColorChange
   layers:
   - Default
   - TransparentFX

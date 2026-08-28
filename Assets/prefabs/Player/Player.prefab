@@ -1272,7 +1272,7 @@ GameObject:
   - component: {fileID: 5982207585592619013}
   m_Layer: 0
   m_Name: spiderbot_leg
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -2232,7 +2232,7 @@ Light:
   serializedVersion: 12
   m_Type: 0
   m_Color: {r: 1, g: 0.7487137, b: 0.4198113, a: 1}
-  m_Intensity: 2802.503
+  m_Intensity: 46.70838
   m_Range: 8
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -3100,7 +3100,7 @@ GameObject:
   - component: {fileID: 2118848425108361164}
   m_Layer: 0
   m_Name: spiderbot_leg.004
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4656,7 +4656,7 @@ GameObject:
   - component: {fileID: 7212831116133298719}
   m_Layer: 0
   m_Name: spiderbot_leg.001
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4991,7 +4991,7 @@ Light:
   serializedVersion: 12
   m_Type: 0
   m_Color: {r: 1, g: 0.7487137, b: 0.4198113, a: 1}
-  m_Intensity: 2802.503
+  m_Intensity: 23.35419
   m_Range: 5
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -5356,7 +5356,7 @@ Light:
   serializedVersion: 12
   m_Type: 0
   m_Color: {r: 1, g: 0.7487137, b: 0.4198113, a: 1}
-  m_Intensity: 2802.503
+  m_Intensity: 23.35419
   m_Range: 5
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -6620,7 +6620,7 @@ Light:
   serializedVersion: 12
   m_Type: 0
   m_Color: {r: 1, g: 0.7487137, b: 0.4198113, a: 1}
-  m_Intensity: 2802.503
+  m_Intensity: 46.70838
   m_Range: 8
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
@@ -7327,7 +7327,7 @@ GameObject:
   - component: {fileID: 996047013349397013}
   m_Layer: 0
   m_Name: spiderbot_leg.006
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -7868,7 +7868,7 @@ GameObject:
   - component: {fileID: 1677477590732768236}
   m_Layer: 0
   m_Name: spiderbot_leg.005
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -9224,7 +9224,7 @@ GameObject:
   - component: {fileID: 5699885674933692431}
   m_Layer: 0
   m_Name: spiderbot_leg.003
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -9592,8 +9592,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 256
   tetherKey: 323
-  lineMaterial: {fileID: 2100000, guid: be765a642faf4d54ba053bff7ce31d50, type: 2}
-  ropeWidth: 0.05
+  lineMaterial: {fileID: 2100000, guid: f6c59adf1788ecd4c8ad7295a07de683, type: 2}
+  ropeWidth: 0.01
   pullForce: 10
   activeTethers: []
 --- !u!114 &6617003333270342981
@@ -9730,7 +9730,7 @@ GameObject:
   - component: {fileID: 459703984227741384}
   m_Layer: 0
   m_Name: spiderbot_leg.002
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -10667,7 +10667,7 @@ GameObject:
   - component: {fileID: 294685157205752560}
   m_Layer: 0
   m_Name: spider_body_lowpoly
-  m_TagString: Player
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -10681,7 +10681,7 @@ Transform:
   m_GameObject: {fileID: 9063442555537681796}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071067}
-  m_LocalPosition: {x: 0, y: -0.778, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1.3924013, y: 1.3924013, z: 1.3924013}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10712,7 +10712,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: -876546973899608171, guid: 201130f59fb5a914295dae7a76243382, type: 3}
+  - {fileID: 2100000, guid: 830a39404cbbee147b634f4564ba3bd1, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -11024,7 +11024,7 @@ GameObject:
   - component: {fileID: 6669799039250275125}
   m_Layer: 0
   m_Name: spiderbot_leg.007
-  m_TagString: Untagged
+  m_TagString: ColorChange
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
