@@ -10,10 +10,19 @@ public class Scoring : NetworkBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // Only run scoring logic on the server to prevent duplicate score triggers in multiplayer
+        // Only run scoring and kill logic on the server to prevent duplicate execution
         if (!IsServer) return;
 
-        if (other.CompareTag("Item") && other.TryGetComponent<Item>(out Item item))
+        // Kill any player entering the scoring area and spawn corpse at respawn point
+        PlayerController player = other.GetComponentInParent<PlayerController>();
+        if (player != null && player.IsAlive)
+        {
+            player.Die(spawnAtRespawnPoint: true);
+            return;
+        }
+
+        Item item = other.GetComponentInParent<Item>();
+        if (item != null)
         {
             int itemPoints = item.NetPoints.Value;
             totalScore += itemPoints;
@@ -27,22 +36,22 @@ public class Scoring : NetworkBehaviour
             NotifyScoreClientRpc(totalScore);
 
             // Find all active player components in the scene
-            NewClimbing[] players = FindObjectsByType<NewClimbing>(FindObjectsSortMode.None);
+            PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
 
             // Award money to every player
-            foreach (NewClimbing player in players)
+            foreach (PlayerController p in players)
             {
-                player.Money += itemPoints * player.gainMultiplier;
+                p.Money += itemPoints * p.gainMultiplier;
             }
 
             // Despawn networked object across clients, or destroy if local
-            if (other.TryGetComponent<NetworkObject>(out NetworkObject netObj))
+            if (item.TryGetComponent<NetworkObject>(out NetworkObject netObj) && netObj.IsSpawned)
             {
                 netObj.Despawn();
             }
             else
             {
-                Destroy(other.gameObject);
+                Destroy(item.gameObject);
             }
         }
     }

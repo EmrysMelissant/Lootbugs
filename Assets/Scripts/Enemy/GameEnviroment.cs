@@ -14,9 +14,24 @@ public sealed class GameEnviroment
             if (instance == null)
             {
                 instance = new GameEnviroment();
-                instance.Checkpoints.AddRange(GameObject.FindGameObjectsWithTag("Checkpoint"));
+                instance.RefreshCheckpoints();
             }
             return instance;
         }
+    }
+
+    public void RefreshCheckpoints()
+    {
+        Checkpoints.Clear();
+        GameObject[] found = GameObject.FindGameObjectsWithTag("Checkpoint");
+        if (found != null)
+        {
+            Checkpoints.AddRange(found);
+        }
+    }
+
+    public static void Refresh()
+    {
+        Singleton.RefreshCheckpoints();
     }
 }

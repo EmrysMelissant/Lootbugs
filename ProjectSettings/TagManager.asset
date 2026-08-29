@@ -9,6 +9,9 @@ TagManager:
   - Checkpoint
   - doorTag
   - SpawnPoint
+  - RespawnPoint
+  - SkyboxCamera
+  - ColorChange
   layers:
   - Default
   - TransparentFX

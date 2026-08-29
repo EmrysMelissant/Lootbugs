@@ -59,7 +59,7 @@ public class Attack : State
         if (currentTarget == null) return;
 
         // Deal damage and knockback to the player component
-        NewClimbing player = currentTarget.GetComponentInParent<NewClimbing>();
+        PlayerController player = currentTarget.GetComponentInParent<PlayerController>();
         if (player != null && player.IsAlive)
         {
             float damage = ai != null ? ai.AttackDamage : 15f;

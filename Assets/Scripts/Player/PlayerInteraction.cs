@@ -7,7 +7,37 @@ public class PlayerInteraction : NetworkBehaviour
     [SerializeField] private float interactionDistance = 3f;
     [SerializeField] private LayerMask interactionLayer;
     [SerializeField] private TMP_Text interactionPrompt;
+    public KeyCode interactKey = KeyCode.E;
     private Camera playerCamera;
+
+    private void Awake()
+    {
+        if (interactionPrompt != null)
+        {
+            interactionPrompt.text = "";
+        }
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        if (!IsOwner)
+        {
+            if (interactionPrompt != null)
+            {
+                interactionPrompt.text = "";
+                interactionPrompt.gameObject.SetActive(false);
+            }
+            this.enabled = false;
+            return;
+        }
+
+        if (interactionPrompt != null)
+        {
+            interactionPrompt.text = "";
+        }
+    }
 
     private void Start()
     {
@@ -46,7 +76,7 @@ public class PlayerInteraction : NetworkBehaviour
                     interactionPrompt.text = interactable.InteractionText;
                 }
 
-                if (Input.GetKeyDown(KeyCode.F))
+                if (Input.GetKeyDown(interactKey))
                 {
                     interactable.Interact(gameObject);
                 }
@@ -58,6 +88,17 @@ public class PlayerInteraction : NetworkBehaviour
         if (interactionPrompt != null)
         {
             interactionPrompt.text = "";
+        }
+    }
+
+    [ServerRpc]
+    public void RequestStartRunServerRpc(string sceneName)
+    {
+        if (!IsServer) return;
+
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening && NetworkManager.Singleton.IsServer)
+        {
+            NetworkManager.Singleton.SceneManager.LoadScene(sceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
         }
     }
 }
