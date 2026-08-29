@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(Collider))]
-public class PersistentItemContainer : MonoBehaviour
+public class ItemSaveZone : MonoBehaviour
 {
     [System.Serializable]
     public class SavedItemData
@@ -17,14 +17,30 @@ public class PersistentItemContainer : MonoBehaviour
     [Header("Settings")]
     [Tooltip("Tags of items that should be saved across scenes. Leave empty to allow all tagged objects.")]
     [SerializeField] private List<string> targetTags = new List<string> { "Item" };
+    [Tooltip("If true, kills players who enter this zone and spawns their corpse at the respawn point.")]
+    [SerializeField] private bool killPlayerOnEnter = false;
 
     [Header("Tracked Items (Read Only)")]
     [SerializeField] private List<SavedItemData> savedItems = new List<SavedItemData>();
 
+    public static ItemSaveZone Instance { get; private set; }
+
     private void Awake()
     {
-        // Keep container alive across scene loads
-        DontDestroyOnLoad(gameObject);
+        // Singleton pattern: preserve ONE persistent container across scenes
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (Instance != this)
+        {
+            // Another container already exists (persisted from previous scene).
+            // Sync this scene's container transform position to the persistent instance and destroy this duplicate
+            Instance.AlignToNewSceneContainer(transform);
+            Destroy(gameObject);
+            return;
+        }
 
         // Ensure collider is set to trigger
         Collider col = GetComponent<Collider>();
@@ -44,23 +60,46 @@ public class PersistentItemContainer : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
+    public void AlignToNewSceneContainer(Transform sceneContainerTransform)
+    {
+        if (sceneContainerTransform == null) return;
+
+        transform.position = sceneContainerTransform.position;
+        transform.rotation = sceneContainerTransform.rotation;
+        transform.localScale = sceneContainerTransform.localScale;
+
+        RestoreItemPositions();
+    }
+
     private void OnTriggerEnter(Collider other)
     {
-        GameObject item = other.gameObject;
-
-        if (IsTargetItem(item) && !IsItemTracked(item))
+        PlayerController player = other.GetComponentInParent<PlayerController>();
+        if (player != null && player.IsAlive)
         {
-            SaveItem(item);
+            if (killPlayerOnEnter)
+            {
+                player.Die(spawnAtRespawnPoint: true);
+            }
+            return;
+        }
+
+        Item itemComp = other.GetComponentInParent<Item>();
+        GameObject itemObj = itemComp != null ? itemComp.gameObject : other.gameObject;
+
+        if (IsTargetItem(itemObj) && !IsItemTracked(itemObj))
+        {
+            SaveItem(itemObj);
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        GameObject item = other.gameObject;
+        Item itemComp = other.GetComponentInParent<Item>();
+        GameObject itemObj = itemComp != null ? itemComp.gameObject : other.gameObject;
 
-        if (IsItemTracked(item))
+        if (IsItemTracked(itemObj))
         {
-            RemoveItem(item);
+            RemoveItem(itemObj);
         }
     }
 
@@ -69,6 +108,8 @@ public class PersistentItemContainer : MonoBehaviour
     /// </summary>
     public void SaveItem(GameObject item)
     {
+        if (item == null) return;
+
         // Parent item to container to establish local transform relationship
         item.transform.SetParent(transform);
         DontDestroyOnLoad(item);
@@ -88,11 +129,22 @@ public class PersistentItemContainer : MonoBehaviour
     /// </summary>
     public void RemoveItem(GameObject item)
     {
+        if (item == null) return;
+
         savedItems.RemoveAll(data => data.itemObject == item);
 
         // Unparent and assign to current active scene
         item.transform.SetParent(null);
-        SceneManager.MoveGameObjectToScene(item, SceneManager.GetActiveScene());
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (activeScene.isLoaded)
+        {
+            SceneManager.MoveGameObjectToScene(item, activeScene);
+        }
+
+        if (item.TryGetComponent<Rigidbody>(out Rigidbody rb))
+        {
+            rb.WakeUp();
+        }
     }
 
     /// <summary>
@@ -100,6 +152,18 @@ public class PersistentItemContainer : MonoBehaviour
     /// </summary>
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // Try to find any scene ItemSaveZone in the newly loaded scene to align to
+        ItemSaveZone[] containers = FindObjectsByType<ItemSaveZone>(FindObjectsSortMode.None);
+        foreach (var c in containers)
+        {
+            if (c != this && c != null)
+            {
+                AlignToNewSceneContainer(c.transform);
+                Destroy(c.gameObject);
+                return;
+            }
+        }
+
         RestoreItemPositions();
     }
 
@@ -108,33 +172,44 @@ public class PersistentItemContainer : MonoBehaviour
     /// </summary>
     public void RestoreItemPositions()
     {
-        // Clean up any destroyed objects from the list first
         savedItems.RemoveAll(data => data.itemObject == null);
 
         foreach (SavedItemData data in savedItems)
         {
-            // Reset velocity if the item has a Rigidbody
-            if (data.itemObject.TryGetComponent<Rigidbody>(out Rigidbody rb))
-            {
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-            }
+            if (data.itemObject == null) continue;
 
             // Re-apply local offset relative to container
             data.itemObject.transform.SetParent(transform);
             data.itemObject.transform.localPosition = data.relativePosition;
             data.itemObject.transform.localRotation = data.relativeRotation;
+
+            // Reset velocity and wake up Rigidbody so triggers fire in the new scene
+            if (data.itemObject.TryGetComponent<Rigidbody>(out Rigidbody rb))
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.isKinematic = false;
+                rb.useGravity = true;
+                rb.WakeUp();
+            }
         }
     }
 
-    private bool IsItemTracked(GameObject obj)
+    public bool IsItemTracked(GameObject obj)
     {
+        if (obj == null) return false;
         return savedItems.Exists(data => data.itemObject == obj);
     }
 
     private bool IsTargetItem(GameObject obj)
     {
+        if (obj == null) return false;
         if (targetTags == null || targetTags.Count == 0) return true;
-        return targetTags.Contains(obj.tag);
+        return targetTags.Contains(obj.tag) || obj.GetComponentInParent<Item>() != null;
     }
+}
+
+// Backward compatibility alias for any existing serialized references
+public class PersistentItemContainer : ItemSaveZone
+{
 }

@@ -16,12 +16,28 @@ public class AI : MonoBehaviour
     [Tooltip("Knockback force applied to the player on hit.")]
     [SerializeField] private float knockbackForce = 12f;
 
-    [Header("Perception Settings")]
+    [Header("Perception & Line of Sight")]
     [Tooltip("Maximum vision distance to spot players.")]
     [SerializeField] private float visionDistance = 10f;
 
     [Tooltip("Vision cone half-angle in degrees.")]
     [SerializeField] private float visionAngle = 35f;
+
+    [Tooltip("Layers that block line of sight (walls, doors, environment).")]
+    [SerializeField] private LayerMask sightObstacleLayers = ~0;
+
+    [Tooltip("Eye height offset above ground for line-of-sight raycasts.")]
+    [SerializeField] private float eyeHeight = 1.0f;
+
+    [Tooltip("Seconds the enemy continues pursuing the last seen position after line of sight is broken.")]
+    [SerializeField] private float loseSightDuration = 2.0f;
+
+    [Header("Reachability Settings")]
+    [Tooltip("Maximum vertical height difference before the player is considered out of reach (e.g. climbing walls).")]
+    [SerializeField] private float maxReachVerticalDistance = 3.0f;
+
+    [Tooltip("Seconds the player can remain out of reach or path blocked before the enemy gives up chase.")]
+    [SerializeField] private float unreachableDuration = 1.5f;
 
     [Header("Movement Settings")]
     [Tooltip("Movement speed while chasing a player.")]
@@ -40,6 +56,11 @@ public class AI : MonoBehaviour
     public float KnockbackForce => knockbackForce;
     public float VisionDistance => visionDistance;
     public float VisionAngle => visionAngle;
+    public LayerMask SightObstacleLayers => sightObstacleLayers;
+    public float EyeHeight => eyeHeight;
+    public float LoseSightDuration => loseSightDuration;
+    public float MaxReachVerticalDistance => maxReachVerticalDistance;
+    public float UnreachableDuration => unreachableDuration;
     public float ChaseSpeed => chaseSpeed;
     public float PatrolSpeed => patrolSpeed;
 
@@ -55,6 +76,17 @@ public class AI : MonoBehaviour
         if (currentState != null)
         {
             currentState = currentState.Process();
+        }
+    }
+
+    public void OnHeardNoise(Vector3 noisePosition)
+    {
+        if (currentState != null && (currentState.name == State.STATE.Idle || currentState.name == State.STATE.Patrol))
+        {
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.SetDestination(noisePosition);
+            }
         }
     }
 }
