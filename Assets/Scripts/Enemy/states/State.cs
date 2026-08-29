@@ -67,16 +67,54 @@ public class State
     {
         if (target == null || !target.gameObject.activeInHierarchy) return false;
 
-        NewClimbing climbing = target.GetComponentInParent<NewClimbing>();
-        if (climbing == null || !climbing.IsAlive || !climbing.gameObject.activeInHierarchy) return false;
+        PlayerController controller = target.GetComponentInParent<PlayerController>();
+        if (controller == null || !controller.IsAlive || !controller.gameObject.activeInHierarchy) return false;
 
+        return true;
+    }
+
+    public bool HasLineOfSight(Transform target)
+    {
+        if (target == null || npc == null) return false;
+
+        float eyeH = ai != null ? ai.EyeHeight : 1.0f;
+        Vector3 eyePos = npc.transform.position + Vector3.up * eyeH;
+        Vector3 targetPos = target.position + Vector3.up * 1.0f;
+
+        Vector3 dir = targetPos - eyePos;
+        float dist = dir.magnitude;
+        if (dist <= 0.05f) return true;
+
+        LayerMask mask = ai != null ? ai.SightObstacleLayers : ~0;
+
+        if (Physics.Raycast(eyePos, dir.normalized, out RaycastHit hit, dist, mask, QueryTriggerInteraction.Ignore))
+        {
+            // If the ray hits the target or a child/parent of the target, line of sight is clear
+            if (hit.transform == target || hit.transform.IsChildOf(target) || target.IsChildOf(hit.transform))
+            {
+                return true;
+            }
+
+            // Check if it hit the player's PlayerController component
+            PlayerController hitPlayer = hit.collider.GetComponentInParent<PlayerController>();
+            PlayerController targetPlayer = target.GetComponentInParent<PlayerController>();
+            if (hitPlayer != null && targetPlayer != null && hitPlayer == targetPlayer)
+            {
+                return true;
+            }
+
+            // Line of sight is blocked by a wall, door, or obstacle
+            return false;
+        }
+
+        // Ray reached target without hitting any blocking obstacle
         return true;
     }
 
     public bool CanSeePlayer(out Transform visiblePlayer)
     {
         visiblePlayer = null;
-        NewClimbing[] allPlayers = Object.FindObjectsByType<NewClimbing>(FindObjectsSortMode.None);
+        PlayerController[] allPlayers = Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
 
         float maxVisionDist = ai != null ? ai.VisionDistance : visDistance;
         float maxVisionAngle = ai != null ? ai.VisionAngle : visAngle;
@@ -84,7 +122,7 @@ public class State
 
         for (int i = 0; i < allPlayers.Length; i++)
         {
-            NewClimbing player = allPlayers[i];
+            PlayerController player = allPlayers[i];
             if (player == null || !player.gameObject.activeInHierarchy || !player.IsAlive) continue;
 
             Vector3 direction = player.transform.position - npc.transform.position;
@@ -93,8 +131,12 @@ public class State
 
             if (distance < closestDistance && angle < maxVisionAngle)
             {
-                closestDistance = distance;
-                visiblePlayer = player.transform;
+                // Verify line of sight raycast
+                if (HasLineOfSight(player.transform))
+                {
+                    closestDistance = distance;
+                    visiblePlayer = player.transform;
+                }
             }
         }
 

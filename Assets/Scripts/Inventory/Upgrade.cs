@@ -19,7 +19,7 @@ public class Upgrade : MonoBehaviour, IInteractable
 
     public void Interact(GameObject interactor)
     {
-        if (interactor.TryGetComponent(out NewClimbing player))
+        if (interactor.TryGetComponent(out PlayerController player))
         {
             if (player.Money >= price)
             {
@@ -33,18 +33,20 @@ public class Upgrade : MonoBehaviour, IInteractable
         }
     }
 
-    private void ApplyUpgrade(NewClimbing player)
+    private void ApplyUpgrade(PlayerController player)
     {
         switch (upgradeType)
         {
             case UpgradeType.Health:
                 player.MaxHealth += 10f;
+                player.UpdateHealthUI();
                 break;
             case UpgradeType.Speed:
                 player.walkSpeed += 1f;
                 break;
             case UpgradeType.Stamina:
                 player.maxStamina += 10f;
+                player.UpdateStaminaUI();
                 break;
             case UpgradeType.StaminaRegen:
                 player.staminaRegenRate += 0.2f;
@@ -58,9 +60,8 @@ public class Upgrade : MonoBehaviour, IInteractable
             case UpgradeType.Heal:
                 if (player.Health < player.MaxHealth)
                 {
-                    player.Health += 20f;
+                    player.Heal(20f);
                 }
-
                 break;
         }
         price += price * 0.2f;

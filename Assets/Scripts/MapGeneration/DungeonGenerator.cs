@@ -87,8 +87,26 @@ public class DungeonGenerator : MonoBehaviour
     public int MaxEnemyCount => maxEnemyCount;
     public List<GameObject> SpawnedRooms => spawnedRooms;
 
+    [Header("Overlap Prevention Settings")]
+    [Tooltip("If true, checks candidate rooms against existing rooms and rejects overlapping placements.")]
+    [SerializeField] private bool preventRoomOverlaps = true;
+
+    [Tooltip("Padding in meters subtracted from room bounding boxes to allow touching walls/doorways without false collision.")]
+    [SerializeField] private float roomOverlapPadding = 0.5f;
+
+    [Tooltip("Maximum generation loop attempts before completing dungeon layout.")]
+    [SerializeField] private int maxPlacementAttempts = 250;
+
+    [Header("NavMesh & Doorway Settings")]
+    [Tooltip("Whether to generate NavMeshLinks at connected doorways to guarantee seamless pathfinding across room seams.")]
+    [SerializeField] private bool generateDoorwayNavMeshLinks = true;
+
+    [Tooltip("Width of the doorway NavMeshLinks.")]
+    [SerializeField] private float doorwayLinkWidth = 2.0f;
+
     private readonly List<Transform> openAnchors = new List<Transform>();
     private readonly List<GameObject> spawnedRooms = new List<GameObject>();
+    private readonly List<Transform> connectedAnchors = new List<Transform>();
 
     private void Start()
     {
@@ -96,7 +114,7 @@ public class DungeonGenerator : MonoBehaviour
 
         if (surface != null)
         {
-            surface.BuildNavMesh();
+            BakeNavMeshThroughDoors();
         }
 
         SpawnEnemies();
@@ -106,6 +124,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         openAnchors.Clear();
         spawnedRooms.Clear();
+        connectedAnchors.Clear();
 
         // 1. Resolve and initialize the starting room
         GameObject startRoom = GetOrSpawnStartRoom();
@@ -124,20 +143,39 @@ public class DungeonGenerator : MonoBehaviour
             return;
         }
 
-        // 2. Loop to attach remaining rooms
+        // 2. Loop to attach remaining rooms with overlap prevention
         int attempts = 0;
-        while (spawnedRooms.Count < maxRooms && openAnchors.Count > 0 && attempts < 100)
+        while (spawnedRooms.Count < maxRooms && openAnchors.Count > 0 && attempts < maxPlacementAttempts)
         {
             attempts++;
 
             // Pick a random open anchor on the existing map
-            Transform currentAnchor = openAnchors[Random.Range(0, openAnchors.Count)];
+            int anchorIndex = Random.Range(0, openAnchors.Count);
+            Transform currentAnchor = openAnchors[anchorIndex];
 
-            // Pick a random room prefab to spawn
-            GameObject prefabToSpawn = roomPrefabs[Random.Range(0, roomPrefabs.Length)];
+            // Shuffle candidate prefabs to attempt multiple variations at this anchor
+            List<GameObject> candidatePrefabs = new List<GameObject>(roomPrefabs);
+            for (int i = candidatePrefabs.Count - 1; i > 0; i--)
+            {
+                int r = Random.Range(0, i + 1);
+                GameObject temp = candidatePrefabs[i];
+                candidatePrefabs[i] = candidatePrefabs[r];
+                candidatePrefabs[r] = temp;
+            }
 
-            // Try to attach the new room to the current anchor
-            if (TryAttachRoom(prefabToSpawn, currentAnchor))
+            bool attached = false;
+            for (int p = 0; p < candidatePrefabs.Count; p++)
+            {
+                if (TryAttachRoom(candidatePrefabs[p], currentAnchor))
+                {
+                    openAnchors.Remove(currentAnchor);
+                    attached = true;
+                    break;
+                }
+            }
+
+            // If none of the prefabs fit without overlapping, close this anchor so other branches expand
+            if (!attached)
             {
                 openAnchors.Remove(currentAnchor);
             }
@@ -352,7 +390,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (roomPrefab == null || targetAnchor == null) return false;
 
-        // Temporary instance to manipulate transforms
+        // Instantiate candidate room
         GameObject newRoom = Instantiate(roomPrefab);
         List<Transform> newAnchors = GetAnchors(newRoom);
 
@@ -362,29 +400,220 @@ public class DungeonGenerator : MonoBehaviour
             return false;
         }
 
-        // Pick an anchor on the incoming room to connect with
-        Transform newRoomAnchor = newAnchors[Random.Range(0, newAnchors.Count)];
-
-        // Calculate required rotation: turn incoming room so anchor's forward vector faces opposite target anchor
-        Vector3 lookDir = -targetAnchor.forward;
-        if (lookDir.sqrMagnitude > 0.0001f)
+        // Shuffle anchors on the candidate room to test all available doorway connections
+        List<Transform> candidateAnchors = new List<Transform>(newAnchors);
+        for (int i = candidateAnchors.Count - 1; i > 0; i--)
         {
-            Vector3 upDir = Mathf.Abs(Vector3.Dot(lookDir.normalized, Vector3.up)) > 0.99f ? Vector3.forward : Vector3.up;
-            Quaternion targetRotation = Quaternion.LookRotation(lookDir, upDir);
-            Quaternion rotationOffset = targetRotation * Quaternion.Inverse(newRoomAnchor.localRotation);
-            newRoom.transform.rotation = rotationOffset;
+            int r = Random.Range(0, i + 1);
+            Transform temp = candidateAnchors[i];
+            candidateAnchors[i] = candidateAnchors[r];
+            candidateAnchors[r] = temp;
         }
 
-        // Align position: move new room so the chosen anchor overlaps the target anchor exactly
-        Vector3 positionOffset = targetAnchor.position - newRoomAnchor.position;
-        newRoom.transform.position += positionOffset;
+        bool placedSuccessfully = false;
+        Transform chosenAnchor = null;
+
+        for (int a = 0; a < candidateAnchors.Count; a++)
+        {
+            Transform candidateAnchor = candidateAnchors[a];
+            if (candidateAnchor == null) continue;
+
+            // Reset local transform before testing orientation
+            newRoom.transform.position = Vector3.zero;
+            newRoom.transform.rotation = Quaternion.identity;
+
+            // Align rotation: turn incoming room so anchor's forward vector faces opposite target anchor
+            Vector3 lookDir = -targetAnchor.forward;
+            if (lookDir.sqrMagnitude > 0.0001f)
+            {
+                Vector3 upDir = Mathf.Abs(Vector3.Dot(lookDir.normalized, Vector3.up)) > 0.99f ? Vector3.forward : Vector3.up;
+                Quaternion targetRotation = Quaternion.LookRotation(lookDir, upDir);
+                Quaternion rotationOffset = targetRotation * Quaternion.Inverse(candidateAnchor.localRotation);
+                newRoom.transform.rotation = rotationOffset;
+            }
+
+            // Align position: move new room so the chosen anchor overlaps the target anchor exactly
+            Vector3 positionOffset = targetAnchor.position - candidateAnchor.position;
+            newRoom.transform.position += positionOffset;
+
+            // Verify room does not overlap any already spawned rooms
+            if (!IsRoomOverlapping(newRoom))
+            {
+                placedSuccessfully = true;
+                chosenAnchor = candidateAnchor;
+                break;
+            }
+        }
+
+        if (!placedSuccessfully)
+        {
+            // All anchor orientations for this room overlapped, destroy candidate
+            Destroy(newRoom);
+            return false;
+        }
+
+        // Record connection between anchors
+        connectedAnchors.Add(targetAnchor);
+        connectedAnchors.Add(chosenAnchor);
 
         // Add remaining open anchors to the global list
-        newAnchors.Remove(newRoomAnchor);
+        newAnchors.Remove(chosenAnchor);
         openAnchors.AddRange(newAnchors);
         spawnedRooms.Add(newRoom);
 
         return true;
+    }
+
+    private bool IsRoomOverlapping(GameObject candidateRoom)
+    {
+        if (!preventRoomOverlaps || candidateRoom == null) return false;
+
+        Physics.SyncTransforms();
+
+        Bounds candidateBounds = CalculateRoomBounds(candidateRoom);
+
+        // Subtract overlap padding on horizontal axes to allow adjacent rooms to touch at doorways
+        Vector3 shrinkVector = new Vector3(roomOverlapPadding * 2f, Mathf.Min(roomOverlapPadding, 0.25f) * 2f, roomOverlapPadding * 2f);
+        if (candidateBounds.size.x > shrinkVector.x && candidateBounds.size.y > shrinkVector.y && candidateBounds.size.z > shrinkVector.z)
+        {
+            candidateBounds.size -= shrinkVector;
+        }
+
+        for (int i = 0; i < spawnedRooms.Count; i++)
+        {
+            GameObject existingRoom = spawnedRooms[i];
+            if (existingRoom == null || existingRoom == candidateRoom) continue;
+
+            Bounds existingBounds = CalculateRoomBounds(existingRoom);
+            if (existingBounds.size.x > shrinkVector.x && existingBounds.size.y > shrinkVector.y && existingBounds.size.z > shrinkVector.z)
+            {
+                existingBounds.size -= shrinkVector;
+            }
+
+            if (candidateBounds.Intersects(existingBounds))
+            {
+                return true; // Overlap detected
+            }
+        }
+
+        return false;
+    }
+
+    public static Bounds CalculateRoomBounds(GameObject room)
+    {
+        Bounds bounds = new Bounds();
+        bool hasBounds = false;
+
+        Collider[] colliders = room.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider col = colliders[i];
+            if (col == null || col.isTrigger) continue;
+
+            if (!hasBounds)
+            {
+                bounds = col.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(col.bounds);
+            }
+        }
+
+        if (!hasBounds)
+        {
+            Renderer[] renderers = room.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer rend = renderers[i];
+                if (rend == null) continue;
+
+                if (!hasBounds)
+                {
+                    bounds = rend.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(rend.bounds);
+                }
+            }
+        }
+
+        if (!hasBounds)
+        {
+            bounds = new Bounds(room.transform.position, new Vector3(8f, 4f, 8f));
+        }
+
+        return bounds;
+    }
+
+    private void BakeNavMeshThroughDoors()
+    {
+        if (surface == null) return;
+
+        // 1. Find all SlidingDoor scripts and configure NavMeshModifier exclusions
+        SlidingDoor[] doors = FindObjectsByType<SlidingDoor>(FindObjectsSortMode.None);
+        List<Collider> temporarilyDisabledColliders = new List<Collider>();
+
+        for (int i = 0; i < doors.Length; i++)
+        {
+            SlidingDoor door = doors[i];
+            if (door == null) continue;
+
+            door.ConfigureNavMeshExclusion();
+
+            // Temporarily disable non-trigger physical door panel colliders during bake
+            Collider[] colliders = door.GetComponentsInChildren<Collider>(true);
+            for (int c = 0; c < colliders.Length; c++)
+            {
+                Collider col = colliders[c];
+                if (col != null && !col.isTrigger && col.enabled)
+                {
+                    col.enabled = false;
+                    temporarilyDisabledColliders.Add(col);
+                }
+            }
+        }
+
+        // 2. Build NavMesh with fully open doorway openings
+        surface.BuildNavMesh();
+
+        // 3. Re-enable door colliders
+        for (int i = 0; i < temporarilyDisabledColliders.Count; i++)
+        {
+            if (temporarilyDisabledColliders[i] != null)
+            {
+                temporarilyDisabledColliders[i].enabled = true;
+            }
+        }
+
+        // 4. Create bidirectional NavMeshLinks at connected doorways to guarantee seam connectivity
+        if (generateDoorwayNavMeshLinks)
+        {
+            CreateDoorwayNavMeshLinks();
+        }
+    }
+
+    private void CreateDoorwayNavMeshLinks()
+    {
+        for (int i = 0; i < connectedAnchors.Count; i++)
+        {
+            Transform anchor = connectedAnchors[i];
+            if (anchor == null) continue;
+
+            NavMeshLink existingLink = anchor.GetComponent<NavMeshLink>();
+            if (existingLink != null) continue;
+
+            NavMeshLink link = anchor.gameObject.AddComponent<NavMeshLink>();
+            link.agentTypeID = 0; // Default humanoid agent
+            link.width = doorwayLinkWidth;
+            link.bidirectional = true;
+            link.startPoint = new Vector3(0f, 0f, -0.75f);
+            link.endPoint = new Vector3(0f, 0f, 0.75f);
+            link.area = 0; // Walkable
+        }
     }
 
     private void AddAnchorsFromRoom(GameObject room)

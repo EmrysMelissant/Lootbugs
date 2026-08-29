@@ -41,7 +41,7 @@ public class GameOver : NetworkBehaviour
                 if (client == null || client.PlayerObject == null) continue;
 
                 totalPlayers++;
-                NewClimbing player = client.PlayerObject.GetComponent<NewClimbing>();
+                PlayerController player = client.PlayerObject.GetComponent<PlayerController>();
                 if (IsPlayerAlive(player))
                 {
                     alivePlayers++;
@@ -50,7 +50,7 @@ public class GameOver : NetworkBehaviour
         }
         else
         {
-            NewClimbing[] scenePlayers = FindObjectsByType<NewClimbing>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            PlayerController[] scenePlayers = FindObjectsByType<PlayerController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             if (scenePlayers != null)
             {
                 foreach (var player in scenePlayers)
@@ -78,7 +78,7 @@ public class GameOver : NetworkBehaviour
         }
     }
 
-    private bool IsPlayerAlive(NewClimbing player)
+    private bool IsPlayerAlive(PlayerController player)
     {
         if (player == null) return false;
         if (!player.gameObject.activeInHierarchy) return false;

@@ -125,9 +125,9 @@ public class StartRun : MonoBehaviour, IInteractable
         return GetAlivePlayers().Count;
     }
 
-    public List<NewClimbing> GetAlivePlayers()
+    public List<PlayerController> GetAlivePlayers()
     {
-        List<NewClimbing> alivePlayers = new List<NewClimbing>();
+        List<PlayerController> alivePlayers = new List<PlayerController>();
 
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
@@ -135,7 +135,7 @@ public class StartRun : MonoBehaviour, IInteractable
             {
                 if (client == null || client.PlayerObject == null) continue;
 
-                NewClimbing player = client.PlayerObject.GetComponent<NewClimbing>();
+                PlayerController player = client.PlayerObject.GetComponent<PlayerController>();
                 if (IsPlayerAlive(player) && !alivePlayers.Contains(player))
                 {
                     alivePlayers.Add(player);
@@ -144,7 +144,7 @@ public class StartRun : MonoBehaviour, IInteractable
         }
         else
         {
-            NewClimbing[] scenePlayers = FindObjectsByType<NewClimbing>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            PlayerController[] scenePlayers = FindObjectsByType<PlayerController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             if (scenePlayers != null)
             {
                 foreach (var player in scenePlayers)
@@ -165,11 +165,11 @@ public class StartRun : MonoBehaviour, IInteractable
         return GetReadyPlayers().Count;
     }
 
-    public List<NewClimbing> GetReadyPlayers()
+    public List<PlayerController> GetReadyPlayers()
     {
         collidersInZone.RemoveWhere(c => c == null || !c.enabled || !c.gameObject.activeInHierarchy);
 
-        List<NewClimbing> readyPlayers = new List<NewClimbing>();
+        List<PlayerController> readyPlayers = new List<PlayerController>();
 
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
         {
@@ -177,7 +177,7 @@ public class StartRun : MonoBehaviour, IInteractable
             {
                 if (client == null || client.PlayerObject == null) continue;
 
-                NewClimbing player = client.PlayerObject.GetComponent<NewClimbing>();
+                PlayerController player = client.PlayerObject.GetComponent<PlayerController>();
                 if (IsPlayerAlive(player) && IsPlayerInZone(player))
                 {
                     if (!readyPlayers.Contains(player))
@@ -193,7 +193,7 @@ public class StartRun : MonoBehaviour, IInteractable
             {
                 if (col == null) continue;
 
-                NewClimbing player = col.GetComponentInParent<NewClimbing>();
+                PlayerController player = col.GetComponentInParent<PlayerController>();
                 if (IsPlayerAlive(player) && !readyPlayers.Contains(player))
                 {
                     readyPlayers.Add(player);
@@ -204,7 +204,7 @@ public class StartRun : MonoBehaviour, IInteractable
         return readyPlayers;
     }
 
-    private bool IsPlayerAlive(NewClimbing player)
+    private bool IsPlayerAlive(PlayerController player)
     {
         if (player == null) return false;
         if (!player.gameObject.activeInHierarchy) return false;
@@ -212,7 +212,7 @@ public class StartRun : MonoBehaviour, IInteractable
         return true;
     }
 
-    private bool IsPlayerInZone(NewClimbing player)
+    private bool IsPlayerInZone(PlayerController player)
     {
         if (player == null) return false;
 
@@ -220,7 +220,7 @@ public class StartRun : MonoBehaviour, IInteractable
         {
             if (col == null) continue;
 
-            if (col.GetComponentInParent<NewClimbing>() == player)
+            if (col.GetComponentInParent<PlayerController>() == player)
             {
                 return true;
             }

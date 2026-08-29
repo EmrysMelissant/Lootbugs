@@ -13,11 +13,11 @@ public class Scoring : NetworkBehaviour
         // Only run scoring and kill logic on the server to prevent duplicate execution
         if (!IsServer) return;
 
-        // Kill any player entering the scoring area
-        NewClimbing player = other.GetComponentInParent<NewClimbing>();
+        // Kill any player entering the scoring area and spawn corpse at respawn point
+        PlayerController player = other.GetComponentInParent<PlayerController>();
         if (player != null && player.IsAlive)
         {
-            player.Die();
+            player.Die(spawnAtRespawnPoint: true);
             return;
         }
 
@@ -36,10 +36,10 @@ public class Scoring : NetworkBehaviour
             NotifyScoreClientRpc(totalScore);
 
             // Find all active player components in the scene
-            NewClimbing[] players = FindObjectsByType<NewClimbing>(FindObjectsSortMode.None);
+            PlayerController[] players = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
 
             // Award money to every player
-            foreach (NewClimbing p in players)
+            foreach (PlayerController p in players)
             {
                 p.Money += itemPoints * p.gainMultiplier;
             }

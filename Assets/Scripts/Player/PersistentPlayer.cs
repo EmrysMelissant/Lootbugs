@@ -217,9 +217,9 @@ public class PersistentPlayer : NetworkBehaviour
             rb.angularVelocity = Vector3.zero;
         }
 
-        if (TryGetComponent<NewClimbing>(out NewClimbing climbing))
+        if (TryGetComponent<PlayerController>(out PlayerController controller))
         {
-            climbing.SetGravityEnabled(false);
+            controller.SetGravityEnabled(false);
         }
     }
 
@@ -231,16 +231,16 @@ public class PersistentPlayer : NetworkBehaviour
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
 
-            // If not using NewClimbing custom gravity calculation, restore native useGravity
-            if (!TryGetComponent<NewClimbing>(out _))
+            // If not using PlayerController custom gravity calculation, restore native useGravity
+            if (!TryGetComponent<PlayerController>(out _))
             {
                 rb.useGravity = true;
             }
         }
 
-        if (TryGetComponent<NewClimbing>(out NewClimbing climbing))
+        if (TryGetComponent<PlayerController>(out PlayerController controller))
         {
-            climbing.SetGravityEnabled(true);
+            controller.SetGravityEnabled(true);
         }
     }
 
@@ -251,19 +251,19 @@ public class PersistentPlayer : NetworkBehaviour
             gameObject.SetActive(true);
         }
 
-        if (TryGetComponent<NewClimbing>(out NewClimbing climbing))
+        if (TryGetComponent<PlayerController>(out PlayerController controller))
         {
-            climbing.OnRevived(respawnPosition);
-            climbing.Health = climbing.MaxHealth;
-            climbing.stamina = climbing.maxStamina;
+            controller.OnRevived(respawnPosition);
+            controller.Health = controller.MaxHealth;
+            controller.stamina = controller.maxStamina;
         }
     }
 
     private bool IsPlayerDead()
     {
-        if (TryGetComponent<NewClimbing>(out NewClimbing climbing))
+        if (TryGetComponent<PlayerController>(out PlayerController controller))
         {
-            return !climbing.IsAlive || climbing.Health <= 0f;
+            return !controller.IsAlive || controller.Health <= 0f;
         }
         return false;
     }

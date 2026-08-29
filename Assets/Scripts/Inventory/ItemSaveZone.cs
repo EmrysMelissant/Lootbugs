@@ -17,6 +17,8 @@ public class ItemSaveZone : MonoBehaviour
     [Header("Settings")]
     [Tooltip("Tags of items that should be saved across scenes. Leave empty to allow all tagged objects.")]
     [SerializeField] private List<string> targetTags = new List<string> { "Item" };
+    [Tooltip("If true, kills players who enter this zone and spawns their corpse at the respawn point.")]
+    [SerializeField] private bool killPlayerOnEnter = false;
 
     [Header("Tracked Items (Read Only)")]
     [SerializeField] private List<SavedItemData> savedItems = new List<SavedItemData>();
@@ -71,6 +73,16 @@ public class ItemSaveZone : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        PlayerController player = other.GetComponentInParent<PlayerController>();
+        if (player != null && player.IsAlive)
+        {
+            if (killPlayerOnEnter)
+            {
+                player.Die(spawnAtRespawnPoint: true);
+            }
+            return;
+        }
+
         Item itemComp = other.GetComponentInParent<Item>();
         GameObject itemObj = itemComp != null ? itemComp.gameObject : other.gameObject;
 

@@ -10,6 +10,35 @@ public class PlayerInteraction : NetworkBehaviour
     public KeyCode interactKey = KeyCode.E;
     private Camera playerCamera;
 
+    private void Awake()
+    {
+        if (interactionPrompt != null)
+        {
+            interactionPrompt.text = "";
+        }
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        if (!IsOwner)
+        {
+            if (interactionPrompt != null)
+            {
+                interactionPrompt.text = "";
+                interactionPrompt.gameObject.SetActive(false);
+            }
+            this.enabled = false;
+            return;
+        }
+
+        if (interactionPrompt != null)
+        {
+            interactionPrompt.text = "";
+        }
+    }
+
     private void Start()
     {
         if (!IsOwner) return;
