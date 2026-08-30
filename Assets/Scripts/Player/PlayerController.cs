@@ -55,6 +55,9 @@ public class PlayerController : NetworkBehaviour
 
     public event System.Action<float, float> OnHealthChanged;
     public event System.Action<float, float> OnStaminaChanged;
+    public AudioSource audioSource;
+    public AudioClip audio;
+    [SerializeField, Range(0f, 1f)] private float soundVolume = 0.75f;
 
     [Header("Movement Settings")]
     [SerializeField, Range(0f, 100f)]
@@ -145,6 +148,10 @@ public class PlayerController : NetworkBehaviour
         {
             body.constraints = RigidbodyConstraints.FreezeRotation;
             body.useGravity = false;
+        }
+        if (NetworkTetherSystem == null)
+        {
+            NetworkTetherSystem = GetComponent<NetworkTetherSystem>();
         }
         OnValidate();
     }
@@ -472,6 +479,7 @@ public class PlayerController : NetworkBehaviour
         {
             TakeDamageServerRpc(damage, knockbackForce);
         }
+        audioSource.PlayOneShot(audio, soundVolume);
     }
 
     [ServerRpc(RequireOwnership = false)]

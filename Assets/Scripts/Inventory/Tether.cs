@@ -27,6 +27,25 @@ public class NetworkTetherSystem : NetworkBehaviour
     [Header("Physics")]
     public float pullForce = 60f;
 
+    [Header("Teleport Settings")]
+    [Tooltip("Maximum distance the tether can stretch before the target item teleports next to the player.")]
+    [SerializeField] private float maxTetherRange = 10f;
+
+    [Tooltip("Distance in front of the player where the teleported target is placed.")]
+    [SerializeField] private float teleportOffset = 1.5f;
+
+    public float MaxTetherRange
+    {
+        get => maxTetherRange;
+        set => maxTetherRange = value;
+    }
+
+    public float TeleportOffset
+    {
+        get => teleportOffset;
+        set => teleportOffset = value;
+    }
+
     public List<TetherInstance> activeTethers = new List<TetherInstance>();
 
     private Camera cachedCam;
@@ -135,8 +154,11 @@ public class NetworkTetherSystem : NetworkBehaviour
     
     void FixedUpdate()
     {
-        // On Server: Apply physical force authoritatively to pull target Rigidbody towards the tethering player
-        if (IsServer)
+        // On Server (or local authority): Apply physical force and handle distance teleportation
+        bool isNetworkActive = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+        bool hasAuthority = !isNetworkActive || IsServer;
+
+        if (hasAuthority)
         {
             for (int i = 0; i < activeTethers.Count; i++)
             {
@@ -145,11 +167,45 @@ public class NetworkTetherSystem : NetworkBehaviour
 
                 Vector3 targetPoint = tether.target.transform.TransformPoint(tether.localOffset);
                 Vector3 direction = transform.position - targetPoint;
-                if (direction.magnitude > minPullDistance)
+                float currentDistance = direction.magnitude;
+
+                // Teleport item next to the player if it exceeds the maximum tether range
+                if (currentDistance > maxTetherRange)
+                {
+                    TeleportTargetNextToPlayer(tether);
+                    continue;
+                }
+
+                if (currentDistance > minPullDistance)
                 {
                     tether.rb.AddForce(direction.normalized * pullForce, ForceMode.Acceleration);
                 }
             }
+        }
+    }
+
+    private void TeleportTargetNextToPlayer(TetherInstance tether)
+    {
+        if (tether == null || tether.target == null) return;
+
+        Vector3 forwardDirection = transform.forward;
+        if (forwardDirection.sqrMagnitude < 0.001f) forwardDirection = Vector3.forward;
+
+        Vector3 desiredPosition = transform.position + forwardDirection * teleportOffset + Vector3.up * 0.2f;
+
+        // Obstacle check: avoid placing inside walls if facing an obstacle
+        if (Physics.Raycast(transform.position + Vector3.up * 0.5f, forwardDirection, out RaycastHit hit, teleportOffset + 0.3f, ~grappleLayer))
+        {
+            desiredPosition = transform.position + forwardDirection * Mathf.Max(0.5f, hit.distance - 0.4f) + Vector3.up * 0.2f;
+        }
+
+        tether.target.transform.position = desiredPosition;
+
+        if (tether.rb != null)
+        {
+            tether.rb.position = desiredPosition;
+            tether.rb.linearVelocity = Vector3.zero;
+            tether.rb.angularVelocity = Vector3.zero;
         }
     }
 

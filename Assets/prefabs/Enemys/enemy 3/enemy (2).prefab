@@ -188,10 +188,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7f5b3dfa4da1f84478a4b2c311e0e275, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AI
-  attackDamage: 15
+  attackDamage: 5
   attackRange: 2
   attackRate: 1
-  knockbackForce: 12
+  knockbackForce: 7
   visionDistance: 10
   visionAngle: 35
   sightObstacleLayers:
