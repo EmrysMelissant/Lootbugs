@@ -1,29 +1,56 @@
-using UnityEngine;
 using Unity.Netcode;
+using UnityEngine;
+
 public class FlashLight : NetworkBehaviour
 {
-    public GameObject flashLight;
-    public KeyCode lightKey = KeyCode.F;
-    void Start()
+    [SerializeField] public GameObject flashLight;
+    [SerializeField] public KeyCode lightKey = KeyCode.F;
+
+    private readonly NetworkVariable<bool> isLightOn = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner
+    );
+
+    public override void OnNetworkSpawn()
     {
-        flashLight.active = false;
+        base.OnNetworkSpawn();
+        isLightOn.OnValueChanged += OnLightStateChanged;
+        ApplyLightState(isLightOn.Value);
     }
 
-    // Update is called once per frame
-    void Update()
+    public override void OnNetworkDespawn()
     {
-        if(!IsOwner) return;
+        isLightOn.OnValueChanged -= OnLightStateChanged;
+        base.OnNetworkDespawn();
+    }
+
+    private void Update()
+    {
+        if (!IsOwner) return;
+
         if (Input.GetKeyDown(lightKey))
         {
-            if(flashLight.active == true)
-            {
-                flashLight.active = false;
-            }
-            else
-            {
-                flashLight.active = true;
-            }
-            
+            ToggleFlashlight();
+        }
+    }
+
+    public void ToggleFlashlight()
+    {
+        if (!IsOwner) return;
+        isLightOn.Value = !isLightOn.Value;
+    }
+
+    private void OnLightStateChanged(bool previousValue, bool newValue)
+    {
+        ApplyLightState(newValue);
+    }
+
+    private void ApplyLightState(bool state)
+    {
+        if (flashLight != null)
+        {
+            flashLight.SetActive(state);
         }
     }
 }

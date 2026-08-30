@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -141,6 +142,9 @@ public class PlayerController : NetworkBehaviour
         minClimbDotProduct = Mathf.Cos(maxClimbAngle * Mathf.Deg2Rad);
     }
 
+    private Renderer[] characterRenderers;
+    private Collider[] characterColliders;
+
     void Awake()
     {
         body = GetComponent<Rigidbody>();
@@ -153,12 +157,120 @@ public class PlayerController : NetworkBehaviour
         {
             NetworkTetherSystem = GetComponent<NetworkTetherSystem>();
         }
+        CacheCharacterVisualsAndColliders();
         OnValidate();
+    }
+
+    private void CacheCharacterVisualsAndColliders()
+    {
+        List<Renderer> validRenderers = new List<Renderer>();
+        Renderer[] allRenderers = GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < allRenderers.Length; i++)
+        {
+            Renderer r = allRenderers[i];
+            if (r == null) continue;
+            if (r is ParticleSystemRenderer || r is TrailRenderer || r is LineRenderer) continue;
+
+            // Exclude IK constraint cubes or LegAimGrounding debug cubes
+            if (r.TryGetComponent<LegAimGrounding>(out _) || r.name.StartsWith("Cube (") ||
+                (r.transform.parent != null && r.transform.parent.name.Contains("CubeConstraints")))
+            {
+                r.enabled = false;
+                continue;
+            }
+
+            if (r.enabled)
+            {
+                validRenderers.Add(r);
+            }
+        }
+        characterRenderers = validRenderers.ToArray();
+
+        List<Collider> validColliders = new List<Collider>();
+        Collider[] allColliders = GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < allColliders.Length; i++)
+        {
+            Collider c = allColliders[i];
+            if (c == null) continue;
+
+            // Exclude leg cubes and IK constraint targets
+            if (c.TryGetComponent<LegAimGrounding>(out _) || c.name.StartsWith("Cube (") ||
+                (c.transform.parent != null && c.transform.parent.name.Contains("CubeConstraints")))
+            {
+                c.enabled = false;
+                continue;
+            }
+
+            if (c.enabled && !c.isTrigger)
+            {
+                validColliders.Add(c);
+            }
+        }
+        characterColliders = validColliders.ToArray();
+        IgnoreCollisionsWithAllPlayers();
+    }
+
+    public void IgnorePlayerCollisionsWith(PlayerController other)
+    {
+        if (other == null || other == this) return;
+
+        Collider[] myColliders = characterColliders != null && characterColliders.Length > 0
+            ? characterColliders
+            : GetComponentsInChildren<Collider>(true);
+
+        Collider[] otherColliders = other.characterColliders != null && other.characterColliders.Length > 0
+            ? other.characterColliders
+            : other.GetComponentsInChildren<Collider>(true);
+
+        for (int i = 0; i < myColliders.Length; i++)
+        {
+            if (myColliders[i] == null) continue;
+            for (int j = 0; j < otherColliders.Length; j++)
+            {
+                if (otherColliders[j] == null) continue;
+                Physics.IgnoreCollision(myColliders[i], otherColliders[j], true);
+            }
+        }
+    }
+
+    public void IgnoreCollisionsWithAllPlayers()
+    {
+        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        for (int i = 0; i < allPlayers.Length; i++)
+        {
+            if (allPlayers[i] != null && allPlayers[i] != this)
+            {
+                IgnorePlayerCollisionsWith(allPlayers[i]);
+            }
+        }
+    }
+
+    public void ResetVelocity()
+    {
+        velocity = Vector3.zero;
+        if (body != null)
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
+        ResetVelocityClientRpc();
+    }
+
+    [ClientRpc]
+    private void ResetVelocityClientRpc()
+    {
+        velocity = Vector3.zero;
+        if (body != null)
+        {
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+        }
     }
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        IgnoreCollisionsWithAllPlayers();
         if (IsOwner)
         {
             AutoBindUI();
@@ -173,6 +285,7 @@ public class PlayerController : NetworkBehaviour
 
     void Start()
     {
+        IgnoreCollisionsWithAllPlayers();
         maxSpeed = walkSpeed;
         maxAcceleration = walkSpeed;
         stamina = maxStamina;
@@ -488,6 +601,12 @@ public class PlayerController : NetworkBehaviour
         ApplyDamage(damage, knockbackForce);
     }
 
+    public void ApplyDamageDirect(float damage)
+    {
+        if (!IsServer || !isAlive) return;
+        ApplyDamage(damage, Vector3.zero);
+    }
+
     private void ApplyDamage(float damage, Vector3 knockbackForce)
     {
         if (!IsServer || !isAlive) return;
@@ -543,14 +662,14 @@ public class PlayerController : NetworkBehaviour
         {
             GameObject corpseObj = Instantiate(deadPlayerPrefab, spawnPos, Quaternion.identity);
 
-            if (corpseObj.TryGetComponent(out DeadPlayer deadComp))
-            {
-                deadComp.Initialize(OwnerClientId, gameObject);
-            }
-
             if (corpseObj.TryGetComponent(out NetworkObject netObj))
             {
                 netObj.Spawn();
+            }
+
+            if (corpseObj.TryGetComponent(out DeadPlayer deadComp))
+            {
+                deadComp.Initialize(OwnerClientId, gameObject);
             }
         }
         else
@@ -617,37 +736,220 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     private void DeathClientRpc()
     {
-        isAlive = false;
-        Health = 0f;
-        UpdateHealthUI();
-
-        if (body != null)
-        {
-            body.linearVelocity = Vector3.zero;
-        }
-
-        // Fully disable the player prefab GameObject
-        gameObject.SetActive(false);
+        SetAliveState(false, transform.position);
     }
 
-    public void OnRevived(Vector3 revivePosition)
+    public void ReviveFromCorpse(Vector3 revivePosition, float reviveHealth = 20f)
     {
+        if (!IsServer) return;
+
         isAlive = true;
-        Health = 20f; // Revive with 20 health
+        Health = reviveHealth;
         stamina = maxStamina;
 
-        // Teleport to corpse position
+        transform.position = revivePosition;
         if (body != null)
         {
             body.position = revivePosition;
             body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
         }
-        transform.position = revivePosition;
 
-        UpdateHealthUI();
-        UpdateStaminaUI();
+        ReviveClientRpc(revivePosition, reviveHealth);
+    }
 
-        this.enabled = true;
+    [ClientRpc]
+    private void ReviveClientRpc(Vector3 revivePosition, float reviveHealth)
+    {
+        OnRevived(revivePosition, reviveHealth);
+    }
+
+    public void SetAliveState(bool alive, Vector3 targetPosition)
+    {
+        isAlive = alive;
+
+        if (characterRenderers == null || characterColliders == null)
+        {
+            CacheCharacterVisualsAndColliders();
+        }
+
+        if (!alive)
+        {
+            Health = 0f;
+            UpdateHealthUI();
+
+            velocity = Vector3.zero;
+            if (body != null)
+            {
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
+
+            // Disable only the character model renderers
+            if (characterRenderers != null)
+            {
+                for (int i = 0; i < characterRenderers.Length; i++)
+                {
+                    Renderer rend = characterRenderers[i];
+                    if (rend != null)
+                    {
+                        rend.enabled = false;
+                    }
+                }
+            }
+
+            // Disable only the character body colliders
+            if (characterColliders != null)
+            {
+                for (int i = 0; i < characterColliders.Length; i++)
+                {
+                    Collider col = characterColliders[i];
+                    if (col != null)
+                    {
+                        col.enabled = false;
+                    }
+                }
+            }
+
+            // Disable local owner components
+            if (IsOwner)
+            {
+                Camera cam = GetComponentInChildren<Camera>(true);
+                if (cam != null)
+                {
+                    cam.enabled = false;
+                    cam.gameObject.SetActive(false);
+                }
+
+                AudioListener listener = GetComponentInChildren<AudioListener>(true);
+                if (listener != null)
+                {
+                    listener.enabled = false;
+                }
+
+                if (TryGetComponent<PlayerCam>(out var playerCam))
+                {
+                    playerCam.enabled = false;
+                }
+
+                if (TryGetComponent<PlayerInteraction>(out var interaction))
+                {
+                    interaction.enabled = false;
+                }
+
+                if (TryGetComponent<PlayerHUDInteraction>(out var hudInteraction))
+                {
+                    hudInteraction.enabled = false;
+                }
+
+                if (TryGetComponent<NetworkTetherSystem>(out var tether))
+                {
+                    tether.enabled = false;
+                }
+            }
+        }
+        else
+        {
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+            }
+
+            velocity = Vector3.zero;
+            transform.position = targetPosition;
+            if (body != null)
+            {
+                body.position = targetPosition;
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+            }
+
+            // Re-enable only the character model renderers
+            if (characterRenderers != null)
+            {
+                for (int i = 0; i < characterRenderers.Length; i++)
+                {
+                    Renderer rend = characterRenderers[i];
+                    if (rend != null)
+                    {
+                        rend.enabled = true;
+                    }
+                }
+            }
+
+            // Re-enable only the character body colliders
+            if (characterColliders != null)
+            {
+                for (int i = 0; i < characterColliders.Length; i++)
+                {
+                    Collider col = characterColliders[i];
+                    if (col != null)
+                    {
+                        col.enabled = true;
+                    }
+                }
+            }
+
+            IgnoreCollisionsWithAllPlayers();
+
+            // Reset procedural movement and leg positions so spider legs don't glitch or shake
+            BodyController bodyController = GetComponentInChildren<BodyController>(true);
+            if (bodyController != null)
+            {
+                bodyController.ResetLegPositions();
+            }
+
+            // Re-enable local owner components
+            if (IsOwner)
+            {
+                Camera cam = GetComponentInChildren<Camera>(true);
+                if (cam != null)
+                {
+                    cam.enabled = true;
+                    cam.gameObject.SetActive(true);
+                }
+
+                AudioListener listener = GetComponentInChildren<AudioListener>(true);
+                if (listener != null)
+                {
+                    listener.enabled = true;
+                }
+
+                if (TryGetComponent<PlayerCam>(out var playerCam))
+                {
+                    playerCam.enabled = true;
+                }
+
+                if (TryGetComponent<PlayerInteraction>(out var interaction))
+                {
+                    interaction.enabled = true;
+                }
+
+                if (TryGetComponent<PlayerHUDInteraction>(out var hudInteraction))
+                {
+                    hudInteraction.enabled = true;
+                }
+
+                if (TryGetComponent<NetworkTetherSystem>(out var tether))
+                {
+                    tether.enabled = true;
+                }
+
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+
+            this.enabled = true;
+            UpdateHealthUI();
+            UpdateStaminaUI();
+        }
+    }
+
+    public void OnRevived(Vector3 revivePosition, float reviveHealth = 20f)
+    {
+        Health = reviveHealth;
+        stamina = maxStamina;
+        SetAliveState(true, revivePosition);
     }
 
     void UpdateSpeed()

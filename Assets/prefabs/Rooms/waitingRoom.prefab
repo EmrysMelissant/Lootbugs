@@ -6485,6 +6485,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: SM_MainStation_Bar
       objectReference: {fileID: 0}
+    - target: {fileID: 1031819247, guid: abc00000000015922238903991188225, type: 3}
+      propertyPath: m_Layer
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1031819248, guid: abc00000000015922238903991188225, type: 3}
       propertyPath: m_LocalScale.x
       value: 0.7
@@ -6543,7 +6547,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1031819250, guid: abc00000000015922238903991188225, type: 3}
       propertyPath: m_Layer
-      value: 3
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1031819252, guid: abc00000000015922238903991188225, type: 3}
       propertyPath: m_Enabled
@@ -6551,6 +6555,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1027846141246885032, guid: abc00000000015922238903991188225, type: 3}
       propertyPath: m_Convex
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7358627960671864504, guid: abc00000000015922238903991188225, type: 3}
+      propertyPath: m_Layer
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []

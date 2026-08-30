@@ -47,22 +47,83 @@ public class BodyController : MonoBehaviour
     void Awake()
     {
         InitializeAudio();
+        DisableLegColliders();
+        if (groundLayer.value == 0)
+        {
+            groundLayer = LayerMask.GetMask("Ground", "Default", "Environment");
+            if (groundLayer.value == 0)
+            {
+                groundLayer = ~LayerMask.GetMask("Player", "Ignore Raycast");
+            }
+        }
+    }
+
+    private void DisableLegColliders()
+    {
+        if (legCubes != null)
+        {
+            for (int i = 0; i < legCubes.Length; i++)
+            {
+                if (legCubes[i] != null && legCubes[i].TryGetComponent<Collider>(out var col))
+                {
+                    col.enabled = false;
+                }
+            }
+        }
+        if (legTargets != null)
+        {
+            for (int i = 0; i < legTargets.Length; i++)
+            {
+                if (legTargets[i] != null && legTargets[i].TryGetComponent<Collider>(out var col))
+                {
+                    col.enabled = false;
+                }
+            }
+        }
+    }
+
+    private void OnEnable()
+    {
+        ResetLegPositions();
     }
 
     void Start()
     {
+        ResetLegPositions();
+    }
+
+    public void ResetLegPositions()
+    {
+        StopAllCoroutines();
+        DisableLegColliders();
+        if (nextIndexToMove != null) nextIndexToMove.Clear();
+        if (IndexMoving != null) IndexMoving.Clear();
+
         if (spider != null)
         {
             lastSpiderPosition = spider.transform.position;
         }
+        velocity = Vector3.zero;
+        lastVelocity = Vector3.zero;
 
-        legOriginalPositions = new Vector3[legTargets.Length];
-
-        for (int i = 0; i < legTargets.Length; i++)
+        if (legTargets != null)
         {
-            if (legTargets[i] != null)
+            if (legOriginalPositions == null || legOriginalPositions.Length != legTargets.Length)
             {
-                legOriginalPositions[i] = legTargets[i].transform.position;
+                legOriginalPositions = new Vector3[legTargets.Length];
+            }
+
+            for (int i = 0; i < legTargets.Length; i++)
+            {
+                if (legTargets[i] == null) continue;
+
+                Vector3 origin = (legCubes != null && i < legCubes.Length && legCubes[i] != null)
+                    ? legCubes[i].transform.position
+                    : legTargets[i].transform.position;
+
+                Vector3 groundPos = GetGroundPosition(origin);
+                legOriginalPositions[i] = groundPos;
+                legTargets[i].transform.position = groundPos;
             }
         }
     }
@@ -104,9 +165,11 @@ public class BodyController : MonoBehaviour
 
     void MoveLegs()
     {
+        if (legTargets == null || legCubes == null || legOriginalPositions == null) return;
+
         for (int i = 0; i < legTargets.Length; i++)
         {
-            if (legTargets[i] == null || legCubes[i] == null) continue;
+            if (legTargets[i] == null || i >= legCubes.Length || legCubes[i] == null || i >= legOriginalPositions.Length) continue;
 
             // Lock legs that are NOT actively taking a step back to their pinned ground position
             if (!IndexMoving.Contains(i))
@@ -149,7 +212,7 @@ public class BodyController : MonoBehaviour
     Vector3 GetGroundPosition(Vector3 origin)
     {
         // Raycast downwards from the leg cube position to hit ground geometry
-        if (Physics.Raycast(origin + Vector3.up * 1f, Vector3.down, out RaycastHit hit, raycastDistance, groundLayer))
+        if (Physics.Raycast(origin + Vector3.up * 1f, Vector3.down, out RaycastHit hit, raycastDistance, groundLayer, QueryTriggerInteraction.Ignore))
         {
             return hit.point;
         }
@@ -172,7 +235,9 @@ public class BodyController : MonoBehaviour
             PlayStepSound(legTargets[index].transform.position);
         }
 
-        Vector3 startPosition = legOriginalPositions[index];
+        Vector3 startPosition = (legOriginalPositions != null && index < legOriginalPositions.Length) 
+            ? legOriginalPositions[index] 
+            : MoveTo;
 
         for (int i = 1; i <= legSmoothness; i++)
         {
@@ -190,7 +255,10 @@ public class BodyController : MonoBehaviour
         }
 
         // Pin ground target to new position
-        legOriginalPositions[index] = MoveTo;
+        if (legOriginalPositions != null && index < legOriginalPositions.Length)
+        {
+            legOriginalPositions[index] = MoveTo;
+        }
 
         if (playOnFootPlant)
         {
