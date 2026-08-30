@@ -1,6 +1,6 @@
 using UnityEngine;
-
-public class FlashLight : MonoBehaviour
+using Unity.Netcode;
+public class FlashLight : NetworkBehaviour
 {
     public GameObject flashLight;
     public KeyCode lightKey = KeyCode.F;
@@ -12,6 +12,7 @@ public class FlashLight : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(!IsOwner) return;
         if (Input.GetKeyDown(lightKey))
         {
             if(flashLight.active == true)
