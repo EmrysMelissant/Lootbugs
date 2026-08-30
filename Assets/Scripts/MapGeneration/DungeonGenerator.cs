@@ -117,7 +117,28 @@ public class DungeonGenerator : MonoBehaviour
             BakeNavMeshThroughDoors();
         }
 
+        SpawnItemsInRooms();
         SpawnEnemies();
+    }
+
+    public void SpawnItemsInRooms()
+    {
+        // Netcode authority check: only the server/host spawns networked items
+        bool isNetworkActive = NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
+        if (isNetworkActive && !NetworkManager.Singleton.IsServer)
+        {
+            return;
+        }
+
+        ItemSpawner[] spawners = FindObjectsByType<ItemSpawner>(FindObjectsSortMode.None);
+        for (int i = 0; i < spawners.Length; i++)
+        {
+            ItemSpawner spawner = spawners[i];
+            if (spawner != null)
+            {
+                spawner.SpawnItems();
+            }
+        }
     }
 
     public void GenerateMap()
