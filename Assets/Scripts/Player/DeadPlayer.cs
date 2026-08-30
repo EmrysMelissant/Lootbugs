@@ -13,10 +13,27 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
         NetworkVariableWritePermission.Server
     );
 
+    private void Awake()
+    {
+        // Keep corpse camera disabled by default
+        Camera cam = GetComponentInChildren<Camera>(true);
+        if (cam != null)
+        {
+            cam.enabled = false;
+            cam.gameObject.SetActive(false);
+        }
+        AudioListener listener = GetComponentInChildren<AudioListener>(true);
+        if (listener != null)
+        {
+            listener.enabled = false;
+        }
+    }
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
         targetOwnerClientId.OnValueChanged += OnTargetOwnerChanged;
+        UpdateCameraState();
         if (targetOwnerClientId.Value != ulong.MaxValue)
         {
             UpdateMaterialFromTargetPlayer();
@@ -32,6 +49,32 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
     private void OnTargetOwnerChanged(ulong previousValue, ulong newValue)
     {
         UpdateMaterialFromTargetPlayer();
+        UpdateCameraState();
+    }
+
+    private void UpdateCameraState()
+    {
+        bool isMyCorpse = NetworkManager.Singleton != null && 
+                          targetOwnerClientId.Value != ulong.MaxValue &&
+                          targetOwnerClientId.Value == NetworkManager.Singleton.LocalClientId;
+
+        Camera cam = GetComponentInChildren<Camera>(true);
+        AudioListener listener = GetComponentInChildren<AudioListener>(true);
+
+        if (cam != null)
+        {
+            cam.enabled = isMyCorpse;
+            cam.gameObject.SetActive(isMyCorpse);
+        }
+        if (listener != null)
+        {
+            listener.enabled = isMyCorpse;
+        }
+
+        if (TryGetComponent<PlayerCam>(out var playerCam))
+        {
+            playerCam.enabled = isMyCorpse;
+        }
     }
 
     public void Initialize(ulong clientId, GameObject playerObject = null)
@@ -172,28 +215,48 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
     [ClientRpc]
     private void ReviveClientRpc(ulong targetClientId, ulong playerNetObjectId, Vector3 revivePosition)
     {
-        NetworkObject playerNetObj = null;
+        PlayerController targetPlayer = null;
 
         if (NetworkManager.Singleton != null)
         {
-            if (playerNetObjectId != 0 && NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(playerNetObjectId, out var foundObj))
+            if (playerNetObjectId != 0 && NetworkManager.Singleton.SpawnManager != null &&
+                NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(playerNetObjectId, out var foundObj))
             {
-                playerNetObj = foundObj;
+                targetPlayer = foundObj.GetComponent<PlayerController>();
             }
-            else if (NetworkManager.Singleton.ConnectedClients.TryGetValue(targetClientId, out var client))
+            else if (NetworkManager.Singleton.ConnectedClients != null && NetworkManager.Singleton.ConnectedClients.TryGetValue(targetClientId, out var client))
             {
-                playerNetObj = client.PlayerObject;
+                if (client.PlayerObject != null)
+                {
+                    targetPlayer = client.PlayerObject.GetComponent<PlayerController>();
+                }
             }
         }
 
-        if (playerNetObj != null)
+        // Fallback: Search all PlayerControllers (including inactive GameObjects) in the scene
+        if (targetPlayer == null)
         {
-            playerNetObj.gameObject.SetActive(true);
-
-            if (playerNetObj.TryGetComponent(out PlayerController targetPlayer))
+            PlayerController[] allPlayers = Resources.FindObjectsOfTypeAll<PlayerController>();
+            for (int i = 0; i < allPlayers.Length; i++)
             {
-                targetPlayer.OnRevived(revivePosition);
+                PlayerController pc = allPlayers[i];
+                if (pc == null || pc.gameObject.scene.name == null) continue;
+                if (pc.OwnerClientId == targetClientId || (playerNetObjectId != 0 && pc.NetworkObjectId == playerNetObjectId))
+                {
+                    targetPlayer = pc;
+                    break;
+                }
             }
+        }
+
+        if (targetPlayer != null)
+        {
+            if (!targetPlayer.gameObject.activeSelf)
+            {
+                targetPlayer.gameObject.SetActive(true);
+            }
+
+            targetPlayer.OnRevived(revivePosition);
         }
     }
 }
