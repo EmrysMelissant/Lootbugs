@@ -95,6 +95,7 @@ public class BodyController : MonoBehaviour
     public void ResetLegPositions()
     {
         StopAllCoroutines();
+        DisableLegColliders();
         if (nextIndexToMove != null) nextIndexToMove.Clear();
         if (IndexMoving != null) IndexMoving.Clear();
 

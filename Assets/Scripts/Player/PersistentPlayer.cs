@@ -253,9 +253,10 @@ public class PersistentPlayer : NetworkBehaviour
 
         if (TryGetComponent<PlayerController>(out PlayerController controller))
         {
-            controller.OnRevived(respawnPosition);
-            controller.Health = controller.MaxHealth;
+            controller.OnRevived(respawnPosition, controller.MaxHealth);
             controller.stamina = controller.maxStamina;
+            controller.UpdateHealthUI();
+            controller.UpdateStaminaUI();
         }
     }
 

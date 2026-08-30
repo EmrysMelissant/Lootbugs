@@ -3,8 +3,15 @@ using Unity.Netcode;
 
 public class DeadPlayer : NetworkBehaviour, IInteractable
 {
-    [SerializeField] private string interactText = "F to Resurrect";
+    [Header("Interaction Settings")]
+    [SerializeField] private string interactText = "E to Resurrect for 20 HP";
     public string InteractionText => interactText;
+
+    [Header("Camera & Look Settings")]
+    [SerializeField] private float senseX = 800f;
+    [SerializeField] private float senseY = 800f;
+    [SerializeField] private Transform orientationTransform;
+    [SerializeField] private Transform cameraTransform;
 
     // Synchronize the target player's ClientId across network
     private readonly NetworkVariable<ulong> targetOwnerClientId = new NetworkVariable<ulong>(
@@ -13,19 +20,46 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
         NetworkVariableWritePermission.Server
     );
 
+    private Camera cachedCamera;
+    private AudioListener cachedListener;
+    private float xRotation;
+    private float yRotation;
+
     private void Awake()
     {
-        // Keep corpse camera disabled by default
-        Camera cam = GetComponentInChildren<Camera>(true);
-        if (cam != null)
+        // Cache references
+        cachedCamera = GetComponentInChildren<Camera>(true);
+        cachedListener = GetComponentInChildren<AudioListener>(true);
+
+        if (cameraTransform == null && cachedCamera != null)
         {
-            cam.enabled = false;
-            cam.gameObject.SetActive(false);
+            cameraTransform = cachedCamera.transform;
         }
-        AudioListener listener = GetComponentInChildren<AudioListener>(true);
-        if (listener != null)
+
+        if (orientationTransform == null)
         {
-            listener.enabled = false;
+            Transform orient = transform.Find("orientation");
+            if (orient != null)
+            {
+                orientationTransform = orient;
+            }
+        }
+
+        // Disable corpse camera and listener by default
+        if (cachedCamera != null)
+        {
+            cachedCamera.enabled = false;
+            cachedCamera.gameObject.SetActive(false);
+        }
+        if (cachedListener != null)
+        {
+            cachedListener.enabled = false;
+        }
+
+        // Disable any attached PlayerCam component to prevent NetworkBehaviour IsOwner conflicts
+        if (TryGetComponent<PlayerCam>(out var playerCam))
+        {
+            playerCam.enabled = false;
         }
     }
 
@@ -33,7 +67,9 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
     {
         base.OnNetworkSpawn();
         targetOwnerClientId.OnValueChanged += OnTargetOwnerChanged;
+
         UpdateCameraState();
+
         if (targetOwnerClientId.Value != ulong.MaxValue)
         {
             UpdateMaterialFromTargetPlayer();
@@ -43,7 +79,51 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
     public override void OnNetworkDespawn()
     {
         targetOwnerClientId.OnValueChanged -= OnTargetOwnerChanged;
+
+        if (cachedCamera != null)
+        {
+            cachedCamera.enabled = false;
+            cachedCamera.gameObject.SetActive(false);
+        }
+        if (cachedListener != null)
+        {
+            cachedListener.enabled = false;
+        }
+
         base.OnNetworkDespawn();
+    }
+
+    private void Update()
+    {
+        if (!IsMyCorpse()) return;
+
+        HandleCameraLook();
+    }
+
+    private void HandleCameraLook()
+    {
+        if (Cursor.lockState != CursorLockMode.Locked)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        float mouseX = Input.GetAxisRaw("Mouse X") * Time.deltaTime * senseX;
+        float mouseY = Input.GetAxisRaw("Mouse Y") * Time.deltaTime * senseY;
+
+        yRotation += mouseX;
+        xRotation -= mouseY;
+        xRotation = Mathf.Clamp(xRotation, -80f, 80f);
+
+        if (cameraTransform != null)
+        {
+            cameraTransform.localRotation = Quaternion.Euler(xRotation, yRotation, 0);
+        }
+
+        if (orientationTransform != null)
+        {
+            orientationTransform.localRotation = Quaternion.Euler(0, yRotation, 0);
+        }
     }
 
     private void OnTargetOwnerChanged(ulong previousValue, ulong newValue)
@@ -52,37 +132,51 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
         UpdateCameraState();
     }
 
+    public bool IsMyCorpse()
+    {
+        return NetworkManager.Singleton != null &&
+               targetOwnerClientId.Value != ulong.MaxValue &&
+               targetOwnerClientId.Value == NetworkManager.Singleton.LocalClientId;
+    }
+
     private void UpdateCameraState()
     {
-        bool isMyCorpse = NetworkManager.Singleton != null && 
-                          targetOwnerClientId.Value != ulong.MaxValue &&
-                          targetOwnerClientId.Value == NetworkManager.Singleton.LocalClientId;
+        bool isMine = IsMyCorpse();
 
-        Camera cam = GetComponentInChildren<Camera>(true);
-        AudioListener listener = GetComponentInChildren<AudioListener>(true);
-
-        if (cam != null)
+        if (cachedCamera == null)
         {
-            cam.enabled = isMyCorpse;
-            cam.gameObject.SetActive(isMyCorpse);
+            cachedCamera = GetComponentInChildren<Camera>(true);
         }
-        if (listener != null)
+        if (cachedListener == null)
         {
-            listener.enabled = isMyCorpse;
+            cachedListener = GetComponentInChildren<AudioListener>(true);
         }
 
+        if (cachedCamera != null)
+        {
+            cachedCamera.enabled = isMine;
+            cachedCamera.gameObject.SetActive(isMine);
+            if (isMine)
+            {
+                cachedCamera.tag = "MainCamera";
+            }
+        }
+
+        if (cachedListener != null)
+        {
+            cachedListener.enabled = isMine;
+        }
+
+        // Keep PlayerCam disabled on corpse
         if (TryGetComponent<PlayerCam>(out var playerCam))
         {
-            playerCam.enabled = isMyCorpse;
+            playerCam.enabled = false;
         }
     }
 
     public void Initialize(ulong clientId, GameObject playerObject = null)
     {
-        if (IsServer)
-        {
-            targetOwnerClientId.Value = clientId;
-        }
+        targetOwnerClientId.Value = clientId;
 
         if (playerObject != null)
         {
@@ -95,7 +189,8 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
         if (targetOwnerClientId.Value == ulong.MaxValue) return;
 
         GameObject playerObj = null;
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.TryGetValue(targetOwnerClientId.Value, out var client))
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients != null &&
+            NetworkManager.Singleton.ConnectedClients.TryGetValue(targetOwnerClientId.Value, out var client))
         {
             if (client.PlayerObject != null)
             {
@@ -105,8 +200,7 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
 
         if (playerObj == null)
         {
-            // Search all PlayerControllers (including inactive)
-            PlayerController[] controllers = Resources.FindObjectsOfTypeAll<PlayerController>();
+            PlayerController[] controllers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
             for (int i = 0; i < controllers.Length; i++)
             {
                 PlayerController pc = controllers[i];
@@ -171,77 +265,70 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
         // Require the interactor to have PlayerController component
         if (interactor.TryGetComponent(out PlayerController reviverPlayer))
         {
-            // Calculate health sacrifice costs
             float healthCost = 20f;
-            
+
             if (reviverPlayer.Health > healthCost)
             {
-                reviverPlayer.TakeDamage(healthCost);
                 RequestReviveServerRpc();
             }
             else
             {
-                // Warn or prevent revive if cost would kill reviver
                 Debug.LogWarning("Not enough health to resurrect team member!");
             }
         }
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void RequestReviveServerRpc()
+    private void RequestReviveServerRpc(ServerRpcParams rpcParams = default)
     {
         if (!IsServer) return;
 
-        ulong targetClientId = targetOwnerClientId.Value;
-        ulong playerNetObjectId = 0;
+        ulong reviverClientId = rpcParams.Receive.SenderClientId;
 
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.TryGetValue(targetClientId, out var client))
+        // Release any tethers attached to this corpse before despawning
+        if (TryGetComponent(out NetworkObject corpseNetObj))
         {
-            if (client.PlayerObject != null)
+            NetworkTetherSystem.ReleaseTetherForTarget(corpseNetObj.NetworkObjectId);
+        }
+
+        // Verify and deduct health cost from the reviver on the server
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients != null &&
+            NetworkManager.Singleton.ConnectedClients.TryGetValue(reviverClientId, out var reviverClient))
+        {
+            if (reviverClient.PlayerObject != null && reviverClient.PlayerObject.TryGetComponent(out PlayerController reviverController))
             {
-                playerNetObjectId = client.PlayerObject.NetworkObjectId;
+                if (reviverController.Health <= 20f)
+                {
+                    Debug.LogWarning("Reviver does not have enough health to resurrect.");
+                    return;
+                }
+
+                reviverController.ApplyDamageDirect(20f);
+                reviverController.ResetVelocity();
+                reviverController.IgnoreCollisionsWithAllPlayers();
             }
         }
 
-        ReviveClientRpc(targetClientId, playerNetObjectId, transform.position);
-
-        // Despawn death item marker on server
-        if (TryGetComponent(out NetworkObject netObj) && netObj.IsSpawned)
-        {
-            netObj.Despawn();
-        }
-    }
-
-    [ClientRpc]
-    private void ReviveClientRpc(ulong targetClientId, ulong playerNetObjectId, Vector3 revivePosition)
-    {
+        ulong targetClientId = targetOwnerClientId.Value;
         PlayerController targetPlayer = null;
 
-        if (NetworkManager.Singleton != null)
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients != null &&
+            NetworkManager.Singleton.ConnectedClients.TryGetValue(targetClientId, out var targetClient))
         {
-            if (playerNetObjectId != 0 && NetworkManager.Singleton.SpawnManager != null &&
-                NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(playerNetObjectId, out var foundObj))
+            if (targetClient.PlayerObject != null)
             {
-                targetPlayer = foundObj.GetComponent<PlayerController>();
-            }
-            else if (NetworkManager.Singleton.ConnectedClients != null && NetworkManager.Singleton.ConnectedClients.TryGetValue(targetClientId, out var client))
-            {
-                if (client.PlayerObject != null)
-                {
-                    targetPlayer = client.PlayerObject.GetComponent<PlayerController>();
-                }
+                targetPlayer = targetClient.PlayerObject.GetComponent<PlayerController>();
             }
         }
 
-        // Fallback: Search all PlayerControllers (including inactive GameObjects) in the scene
+        // Fallback: Search all PlayerControllers in the scene
         if (targetPlayer == null)
         {
-            PlayerController[] allPlayers = Resources.FindObjectsOfTypeAll<PlayerController>();
+            PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
             for (int i = 0; i < allPlayers.Length; i++)
             {
                 PlayerController pc = allPlayers[i];
-                if (pc == null || pc.gameObject.scene.name == null) continue;
-                if (pc.OwnerClientId == targetClientId || (playerNetObjectId != 0 && pc.NetworkObjectId == playerNetObjectId))
+                if (pc != null && pc.OwnerClientId == targetClientId)
                 {
                     targetPlayer = pc;
                     break;
@@ -251,12 +338,14 @@ public class DeadPlayer : NetworkBehaviour, IInteractable
 
         if (targetPlayer != null)
         {
-            if (!targetPlayer.gameObject.activeSelf)
-            {
-                targetPlayer.gameObject.SetActive(true);
-            }
+            targetPlayer.IgnoreCollisionsWithAllPlayers();
+            targetPlayer.ReviveFromCorpse(transform.position, 20f);
+        }
 
-            targetPlayer.OnRevived(revivePosition);
+        // Despawn death item marker on server
+        if (TryGetComponent(out NetworkObject netObj) && netObj.IsSpawned)
+        {
+            netObj.Despawn(true);
         }
     }
 }

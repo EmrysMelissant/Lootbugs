@@ -110,25 +110,44 @@ public class NetworkTetherSystem : NetworkBehaviour
         }
     }
 
+    public static void ReleaseTetherForTarget(ulong targetId)
+    {
+        if (GlobalTetherRegistry.ContainsKey(targetId))
+        {
+            GlobalTetherRegistry.Remove(targetId);
+        }
+
+        NetworkTetherSystem[] allSystems = FindObjectsByType<NetworkTetherSystem>(FindObjectsSortMode.None);
+        for (int i = 0; i < allSystems.Length; i++)
+        {
+            if (allSystems[i] != null)
+            {
+                allSystems[i].ToggleTetherClientRpc(targetId, Vector3.zero, false);
+            }
+        }
+    }
+
     [ClientRpc]
     void ToggleTetherClientRpc(ulong targetId, Vector3 worldHitPoint, bool isCreating)
     {
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.SpawnManager != null &&
-            NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetId, out var targetNetworkObj))
-        {
-            GameObject targetGo = targetNetworkObj.gameObject;
-            int existingIndex = activeTethers.FindIndex(t => t.targetId == targetId);
+        int existingIndex = activeTethers.FindIndex(t => t.targetId == targetId);
 
-            if (!isCreating && existingIndex != -1)
+        if (!isCreating && existingIndex != -1)
+        {
+            if (activeTethers[existingIndex].line != null)
             {
-                if (activeTethers[existingIndex].line != null)
-                {
-                    Destroy(activeTethers[existingIndex].line.gameObject);
-                }
-                activeTethers.RemoveAt(existingIndex);
+                Destroy(activeTethers[existingIndex].line.gameObject);
             }
-            else if (isCreating && existingIndex == -1)
+            activeTethers.RemoveAt(existingIndex);
+            return;
+        }
+
+        if (isCreating && existingIndex == -1)
+        {
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.SpawnManager != null &&
+                NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetId, out var targetNetworkObj))
             {
+                GameObject targetGo = targetNetworkObj.gameObject;
                 CreateLocalVisualTether(targetGo, targetId, worldHitPoint);
             }
         }

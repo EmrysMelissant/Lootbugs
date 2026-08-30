@@ -43,6 +43,15 @@ public class PlayerCam : NetworkBehaviour
         Cursor.visible = false;
     }
 
+    private void OnEnable()
+    {
+        if (!IsOwner) return;
+        if (camera != null)
+        {
+            camera.SetActive(true);
+        }
+    }
+
     // Update is called once per frame
     void Update()
     {
