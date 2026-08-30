@@ -43,6 +43,7 @@ public class PlayerController : NetworkBehaviour
 
     [Tooltip("UI Image fill displaying player stamina (alternative to Slider).")]
     [SerializeField] private Image staminaFillImage;
+    [SerializeField] private TMP_Text moneyText;
 
     public Slider HealthSlider { get => healthSlider; set => healthSlider = value; }
     public Slider StaminaSlider { get => staminaSlider; set => staminaSlider = value; }
@@ -50,6 +51,7 @@ public class PlayerController : NetworkBehaviour
     public TMP_Text StaminaText { get => staminaText; set => staminaText = value; }
     public Image HealthFillImage { get => healthFillImage; set => healthFillImage = value; }
     public Image StaminaFillImage { get => staminaFillImage; set => staminaFillImage = value; }
+    public TMP_Text MoneyText { get => moneyText; set => moneyText = value; }
 
     public event System.Action<float, float> OnHealthChanged;
     public event System.Action<float, float> OnStaminaChanged;
@@ -252,9 +254,19 @@ public class PlayerController : NetworkBehaviour
         }
 
         UpdateSpeed();
+        UpdateMoneyUI();
     }
 
     #region UI Integration
+
+    public void UpdateMoneyUI()
+    {
+        if (!IsOwner) return;
+        if (moneyText != null)
+        {
+            moneyText.text = $"{Mathf.CeilToInt(Money)}";
+        }
+    }
 
     public void SetHealthUI(Slider slider, TMP_Text text = null, Image fillImage = null)
     {
@@ -387,6 +399,30 @@ public class PlayerController : NetworkBehaviour
                     break;
                 }
             }
+        }
+
+        if (moneyText == null || !moneyText.transform.IsChildOf(transform))
+        {
+            moneyText = null;
+            TMP_Text[] texts = searchRoot.GetComponentsInChildren<TMP_Text>(true);
+            foreach (var t in texts)
+            {
+                if (t == null) continue;
+                string lower = t.name.ToLower();
+                string parentLower = t.transform.parent != null ? t.transform.parent.name.ToLower() : "";
+                if (lower.Contains("money") || parentLower.Contains("money") || lower.Contains("gold") || lower.Contains("score"))
+                {
+                    moneyText = t;
+                    break;
+                }
+            }
+        }
+
+        // Notify Quota system to bind quota and currentAmount text
+        Quota quota = FindFirstObjectByType<Quota>();
+        if (quota != null)
+        {
+            quota.AssignPlayerUITexts();
         }
     }
 

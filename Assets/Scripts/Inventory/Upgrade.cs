@@ -6,6 +6,9 @@ public class Upgrade : MonoBehaviour, IInteractable
     [SerializeField] public UpgradeType upgradeType;
     private float price = 20f;
     public string InteractionText => $"Upgrade {upgradeType} (${price})";
+    public AudioSource audioSource;
+    public AudioClip audio;
+    [SerializeField, Range(0f, 1f)] private float soundVolume = 0.75f;
     public enum UpgradeType
     {
         Health,
@@ -25,6 +28,7 @@ public class Upgrade : MonoBehaviour, IInteractable
             {
                 player.Money -= price;
                 ApplyUpgrade(player);
+                audioSource.PlayOneShot(audio, soundVolume);
             }
             else
             {

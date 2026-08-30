@@ -7,6 +7,10 @@ public class Scoring : NetworkBehaviour
 
     public int TotalScore => totalScore;
     public static event System.Action<int> OnScoreUpdated;
+    public AudioSource audioSource;
+    public AudioClip audio;
+    
+    [SerializeField, Range(0f, 1f)] private float soundVolume = 0.75f;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -42,6 +46,7 @@ public class Scoring : NetworkBehaviour
             foreach (PlayerController p in players)
             {
                 p.Money += itemPoints * p.gainMultiplier;
+                audioSource.PlayOneShot(audio, soundVolume);
             }
 
             // Despawn networked object across clients, or destroy if local
