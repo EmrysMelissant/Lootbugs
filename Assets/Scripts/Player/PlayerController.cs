@@ -214,11 +214,19 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        if (!isAlive || !gravityEnabled) return;
+        Vector2 input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
 
-        playerInput.x = Input.GetAxisRaw("Horizontal");
-        playerInput.y = Input.GetAxisRaw("Vertical");
-        playerInput = Vector2.ClampMagnitude(playerInput, 1f);
+        // Mobile orientation / tilt input support
+        if (MobileInputManager.Instance != null && MobileInputManager.Instance.IsActive)
+        {
+            Vector2 mobileMove = MobileInputManager.Instance.GetMovementInput();
+            if (mobileMove.sqrMagnitude > 0.001f || Application.isMobilePlatform)
+            {
+                input = mobileMove;
+            }
+        }
+
+        playerInput = Vector2.ClampMagnitude(input, 1f);
 
         if (playerInputSpace != null)
         {
@@ -231,16 +239,28 @@ public class PlayerController : NetworkBehaviour
             forwardAxis = ProjectDirectionOnPlane(Vector3.forward, upAxis);
         }
 
-        if (Input.GetButtonDown("Jump"))
+        bool jumpPressed = Input.GetButtonDown("Jump");
+        if (MobileInputManager.Instance != null && MobileInputManager.Instance.ConsumeJump())
+        {
+            jumpPressed = true;
+        }
+
+        if (jumpPressed)
         {
             desiredJump = true;
         }
-        if (Input.GetKeyDown(KeyCode.LeftShift) && stamina > 0)
+
+        bool sprintRequested = Input.GetKey(KeyCode.LeftShift);
+        if (MobileInputManager.Instance != null && MobileInputManager.Instance.IsSprinting)
+        {
+            sprintRequested = true;
+        }
+
+        if (sprintRequested && stamina > 0)
         {
             sprinting = true;
         }
-
-        if (Input.GetKeyUp(KeyCode.LeftShift) || stamina <= 0)
+        else
         {
             sprinting = false;
         }
@@ -430,6 +450,27 @@ public class PlayerController : NetworkBehaviour
         if (quota != null)
         {
             quota.AssignPlayerUITexts();
+        }
+
+        // Setup Mobile Control Island for local player
+        if (MobileInputManager.Instance != null && MobileInputManager.Instance.IsActive)
+        {
+            MobileControlIsland existingIsland = GetComponentInChildren<MobileControlIsland>(true);
+            if (existingIsland == null && playerCanvas != null)
+            {
+                GameObject islandGo = new GameObject("MobileControlIsland", typeof(RectTransform), typeof(MobileControlIsland));
+                islandGo.transform.SetParent(playerCanvas.transform, false);
+                RectTransform islandRt = islandGo.GetComponent<RectTransform>();
+                islandRt.anchorMin = Vector2.zero;
+                islandRt.anchorMax = Vector2.one;
+                islandRt.sizeDelta = Vector2.zero;
+                existingIsland = islandGo.GetComponent<MobileControlIsland>();
+            }
+            if (existingIsland != null)
+            {
+                existingIsland.gameObject.SetActive(true);
+                existingIsland.BindPlayer(this);
+            }
         }
     }
 

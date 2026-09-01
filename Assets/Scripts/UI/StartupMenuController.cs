@@ -224,8 +224,13 @@ public class StartupMenuController : MonoBehaviour
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (inGameHudPanel != null) inGameHudPanel.SetActive(true);
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+#if !UNITY_ANDROID && !UNITY_IOS
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+#endif
     }
 
     public void OnStartHostClicked()
@@ -411,8 +416,13 @@ public class StartupMenuController : MonoBehaviour
 
         if (menuCamera != null) menuCamera.gameObject.SetActive(false);
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+#if !UNITY_ANDROID && !UNITY_IOS
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+#endif
 
         UpdateHudText();
     }

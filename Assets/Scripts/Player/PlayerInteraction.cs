@@ -10,6 +10,10 @@ public class PlayerInteraction : NetworkBehaviour
     public KeyCode interactKey = KeyCode.E;
     private Camera playerCamera;
 
+    private IInteractable currentInteractable;
+    public bool HasTargetInteractable => currentInteractable != null;
+    public string CurrentInteractableText => currentInteractable != null ? currentInteractable.InteractionText : "";
+
     private void Awake()
     {
         if (interactionPrompt != null)
@@ -71,12 +75,20 @@ public class PlayerInteraction : NetworkBehaviour
         {
             if (hit.collider.TryGetComponent(out IInteractable interactable))
             {
+                currentInteractable = interactable;
+
                 if (interactionPrompt != null)
                 {
                     interactionPrompt.text = interactable.InteractionText;
                 }
 
-                if (Input.GetKeyDown(interactKey))
+                bool interactInput = Input.GetKeyDown(interactKey);
+                if (MobileInputManager.Instance != null && MobileInputManager.Instance.ConsumeInteract())
+                {
+                    interactInput = true;
+                }
+
+                if (interactInput)
                 {
                     interactable.Interact(gameObject);
                 }
@@ -85,9 +97,18 @@ public class PlayerInteraction : NetworkBehaviour
             }
         }
 
+        currentInteractable = null;
         if (interactionPrompt != null)
         {
             interactionPrompt.text = "";
+        }
+    }
+
+    public void TriggerInteract()
+    {
+        if (currentInteractable != null)
+        {
+            currentInteractable.Interact(gameObject);
         }
     }
 

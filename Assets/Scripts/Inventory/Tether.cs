@@ -63,7 +63,22 @@ public class NetworkTetherSystem : NetworkBehaviour
     void Update()
     {
         if (!IsOwner) return;
-        if (Input.GetKeyDown(tetherKey)) HandleTetherInput();
+
+        bool tetherInput = Input.GetKeyDown(tetherKey);
+        if (MobileInputManager.Instance != null && MobileInputManager.Instance.ConsumeTether())
+        {
+            tetherInput = true;
+        }
+
+        if (tetherInput)
+        {
+            HandleTetherInput();
+        }
+    }
+
+    public void TriggerTether()
+    {
+        HandleTetherInput();
     }
 
     void HandleTetherInput()

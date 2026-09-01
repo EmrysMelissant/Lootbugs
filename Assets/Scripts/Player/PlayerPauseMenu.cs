@@ -57,7 +57,13 @@ public class PlayerPauseMenu : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        bool pauseInput = Input.GetKeyDown(KeyCode.Escape);
+        if (MobileInputManager.Instance != null && MobileInputManager.Instance.ConsumePause())
+        {
+            pauseInput = true;
+        }
+
+        if (pauseInput)
         {
             TogglePause();
         }
@@ -101,8 +107,13 @@ public class PlayerPauseMenu : NetworkBehaviour
             pauseMenuPanel.SetActive(false);
         }
 
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+#if !UNITY_ANDROID && !UNITY_IOS
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+#endif
     }
 
     public void DisconnectToMainMenu()

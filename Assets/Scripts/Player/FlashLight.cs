@@ -6,24 +6,35 @@ public class FlashLight : NetworkBehaviour
     public KeyCode lightKey = KeyCode.F;
     void Start()
     {
-        flashLight.active = false;
+        if (flashLight != null)
+        {
+            flashLight.SetActive(false);
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(!IsOwner) return;
-        if (Input.GetKeyDown(lightKey))
+        if (!IsOwner) return;
+
+        bool toggleInput = Input.GetKeyDown(lightKey);
+        if (MobileInputManager.Instance != null && MobileInputManager.Instance.ConsumeFlashlight())
         {
-            if(flashLight.active == true)
-            {
-                flashLight.active = false;
-            }
-            else
-            {
-                flashLight.active = true;
-            }
-            
+            toggleInput = true;
+        }
+
+        if (toggleInput)
+        {
+            ToggleLight();
+        }
+    }
+
+    public void ToggleLight()
+    {
+        if (flashLight != null)
+        {
+            flashLight.SetActive(!flashLight.activeSelf);
         }
     }
 }
+

@@ -39,20 +39,41 @@ public class PlayerCam : NetworkBehaviour
     void Start()
     {
         if (!IsOwner) return;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+
+#if !UNITY_ANDROID && !UNITY_IOS
+        if (!Application.isMobilePlatform)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+#endif
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (!IsOwner || Cursor.lockState != CursorLockMode.Locked) return;
+        if (!IsOwner) return;
 
-        float mouseX = Input.GetAxisRaw("Mouse X") * Time.deltaTime * senseX;
-        float mouseY = Input.GetAxisRaw("Mouse Y") * Time.deltaTime * senseY;
+        float deltaX = 0f;
+        float deltaY = 0f;
 
-        yRotation += mouseX;
-        xRotation -= mouseY;
+        // Desktop mouse input
+        if (Cursor.lockState == CursorLockMode.Locked)
+        {
+            deltaX += Input.GetAxisRaw("Mouse X") * Time.deltaTime * senseX;
+            deltaY += Input.GetAxisRaw("Mouse Y") * Time.deltaTime * senseY;
+        }
+
+        // Mobile touch look input
+        if (MobileInputManager.Instance != null)
+        {
+            Vector2 touchLook = MobileInputManager.Instance.GetLookDelta();
+            deltaX += touchLook.x;
+            deltaY += touchLook.y;
+        }
+
+        yRotation += deltaX;
+        xRotation -= deltaY;
         xRotation = Mathf.Clamp(xRotation, -80f, 80f);
 
         if (camera != null)
@@ -65,3 +86,4 @@ public class PlayerCam : NetworkBehaviour
         }
     }
 }
+
